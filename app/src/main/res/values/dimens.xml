@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <dimen name="velora_screen_horizontal">20dp</dimen>
+
+    <dimen name="velora_section_gap">28dp</dimen>
+    <dimen name="velora_section_content_gap">12dp</dimen>
+    <dimen name="velora_card_gap">12dp</dimen>
+    <dimen name="velora_artwork_title_gap">8dp</dimen>
+    <dimen name="velora_title_subtitle_gap">3dp</dimen>
+
+    <dimen name="velora_card_compact_height">64dp</dimen>
+    <dimen name="velora_card_compact_artwork">52dp</dimen>
+    <dimen name="velora_card_compact_padding_horizontal">8dp</dimen>
+    <dimen name="velora_card_compact_padding_vertical">6dp</dimen>
+    <dimen name="velora_card_compact_artwork_radius">12dp</dimen>
+
+    <dimen name="velora_card_standard_width">148dp</dimen>
+    <dimen name="velora_card_standard_artwork">148dp</dimen>
+    <dimen name="velora_card_standard_artwork_radius">16dp</dimen>
+
+    <dimen name="velora_card_featured_height">220dp</dimen>
+    <dimen name="velora_card_featured_padding">18dp</dimen>
+    <dimen name="velora_card_featured_radius">22dp</dimen>
+    <dimen name="velora_card_featured_play_button">48dp</dimen>
+
+    <dimen name="velora_mini_player_artwork">48dp</dimen>
+    <dimen name="velora_mini_player_artwork_radius">8dp</dimen>
+
+</resources>
