@@ -41,7 +41,7 @@ public class PlaybackService extends MediaSessionService {
     }
 
     @Override
-    public MediaSession onGetSession(ControllerInfo controllerInfo) {
+    public MediaSession onGetSession(MediaSession.ControllerInfo controllerInfo) {
         return session;
     }
 
