@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
@@ -7,4 +8,52 @@
         <item name="android:navigationBarColor">#0B0B0F</item>
         <item name="android:colorAccent">#B8A7FF</item>
     </style>
+
+    <!-- Velora Compact Card -->
+    <style name="VeloraCardTitle" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">#F5F5F7</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+
+    <style name="VeloraCardArtist" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">#9A9AA3</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+
+    <!-- Velora Standard Card -->
+    <style name="VeloraCardTitleStandard" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">#F5F5F7</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+
+    <!-- Velora Featured Card -->
+    <style name="VeloraFeaturedEyebrow" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">#D0D0D5</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="VeloraFeaturedTitle" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">#F5F5F7</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="VeloraFeaturedSubtitle" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">#D0D0D5</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+
+    <style name="VeloraCardDuration" parent="android:style/TextAppearance.Material">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">#9A9AA3</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+
 </resources>
