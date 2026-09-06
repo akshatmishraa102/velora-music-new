@@ -82,7 +82,7 @@ public class PlayerActivity extends Activity {
                 handler.post(progressUpdater);
             } catch (Exception ignored) {
             }
-        }, androidx.core.content.ContextCompat.getMainExecutor(this));
+        }, command -> handler.post(command));
     }
 
     private void buildPlayerUi() {
