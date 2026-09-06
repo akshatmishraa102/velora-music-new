@@ -3,6 +3,7 @@ package com.veloramusic;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ComponentName;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -184,6 +185,8 @@ public class MainActivity extends Activity {
         bar.setPadding(12, 8, 12, 8);
         bar.setBackgroundColor(Color.rgb(22, 22, 28));
 
+        bar.setOnClickListener(v ->
+        startActivity(new Intent(this, PlayerActivity.class)));
         TextView art = new TextView(this);
         art.setText("♫");
         art.setTextSize(22);
