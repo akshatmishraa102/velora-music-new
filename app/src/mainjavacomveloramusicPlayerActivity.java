@@ -13,7 +13,7 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowManager;
+
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -60,10 +60,7 @@ public class PlayerActivity extends Activity {
         Window window = getWindow();
         window.setStatusBarColor(Color.rgb(8, 8, 11));
         window.setNavigationBarColor(Color.rgb(8, 8, 11));
-        window.setFlags(
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-        );
+       
 
         buildPlayerUi();
 
@@ -90,7 +87,40 @@ public class PlayerActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(dp(20), dp(55), dp(20), dp(20));
+        root.setPadding(dp(20), dp(20), dp(20), dp(20));
+
+root.setOnApplyWindowInsetsListener((v, insets) -> {
+    int left;
+    int top;
+    int right;
+    int bottom;
+
+    if (android.os.Build.VERSION.SDK_INT >= 30) {
+        android.graphics.Insets bars =
+                insets.getInsets(android.view.WindowInsets.Type.systemBars());
+
+        left = bars.left;
+        top = bars.top;
+        right = bars.right;
+        bottom = bars.bottom;
+    } else {
+        left = insets.getSystemWindowInsetLeft();
+        top = insets.getSystemWindowInsetTop();
+        right = insets.getSystemWindowInsetRight();
+        bottom = insets.getSystemWindowInsetBottom();
+    }
+
+    v.setPadding(
+            dp(20) + left,
+            dp(20) + top,
+            dp(20) + right,
+            dp(20) + bottom
+    );
+
+    return insets;
+});
+
+root.requestApplyInsets();
 
         GradientDrawable background = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -150,11 +180,18 @@ public class PlayerActivity extends Activity {
         artworkBackground.setCornerRadius(dp(24));
         artwork.setBackground(artworkBackground);
         artwork.setClipToOutline(true);
-
+int artworkSize = Math.min(
+        dp(310),
+        Math.min(
+                getResources().getDisplayMetrics().widthPixels - dp(40),
+                (int) (getResources().getDisplayMetrics().heightPixels * 0.40f)
+        )
+);
+        
         LinearLayout.LayoutParams artworkParams =
                 new LinearLayout.LayoutParams(
-                        dp(310),
-                        dp(310)
+                        artworkSize,
+                        artworkSize
                 );
 
         artworkParams.gravity = Gravity.CENTER_HORIZONTAL;
