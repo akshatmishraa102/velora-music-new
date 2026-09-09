@@ -116,13 +116,13 @@ public class PlayerActivity extends Activity {
         backgroundArtwork.setScaleType(
                 ImageView.ScaleType.CENTER_CROP
         );
-        backgroundArtwork.setAlpha(0.24f);
+        backgroundArtwork.setAlpha(0.30f);
 
         if (Build.VERSION.SDK_INT >= 31) {
             backgroundArtwork.setRenderEffect(
                     RenderEffect.createBlurEffect(
-                            48f,
-                            48f,
+                            56f,
+                            56f,
                             Shader.TileMode.CLAMP
                     )
             );
@@ -377,7 +377,7 @@ public class PlayerActivity extends Activity {
                 Gravity.CENTER_HORIZONTAL;
 
         artworkParams.topMargin =
-                dp(10);
+                dp(8);
 
         artworkParams.bottomMargin =
                 dp(18);
@@ -414,7 +414,7 @@ public class PlayerActivity extends Activity {
         );
 
         title.setTextSize(
-                23
+                22
         );
 
         title.setTypeface(
@@ -448,7 +448,7 @@ public class PlayerActivity extends Activity {
 
         artist.setPadding(
                 0,
-                dp(4),
+                dp(2),
                 0,
                 0
         );
@@ -494,7 +494,7 @@ public class PlayerActivity extends Activity {
                 favoriteButton,
                 new LinearLayout.LayoutParams(
                         dp(52),
-                        dp(58)
+                        dp(54)
                 )
         );
 
@@ -859,16 +859,16 @@ public class PlayerActivity extends Activity {
         );
 
         glassPanel.setPadding(
-                dp(8),
+                dp(6),
                 dp(2),
-                dp(8),
+                dp(6),
                 dp(2)
         );
 
         glassPanel.setBackground(
                 roundedBackground(
                         Color.argb(
-                                52,
+                                68,
                                 255,
                                 255,
                                 255
@@ -916,7 +916,7 @@ public class PlayerActivity extends Activity {
         LinearLayout.LayoutParams glassParams =
                 new LinearLayout.LayoutParams(
                         -1,
-                        dp(52)
+                        dp(54)
                 );
 
         glassParams.topMargin =
