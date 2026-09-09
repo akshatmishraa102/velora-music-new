@@ -1,6 +1,7 @@
 package com.veloramusic;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -22,15 +23,17 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.Player;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class PlayerActivity extends Activity {
@@ -39,26 +42,34 @@ public class PlayerActivity extends Activity {
     private ListenableFuture<MediaController> controllerFuture;
 
     private FrameLayout root;
+    private View darkOverlay;
     private ImageView backgroundArtwork;
     private ImageView artwork;
+
     private TextView title;
     private TextView artist;
     private TextView currentTime;
     private TextView totalTime;
+    private TextView qualityBadge;
+    private TextView favoriteButton;
+
     private SeekBar progress;
     private SeekBar volume;
     private ImageButton playButton;
-    private TextView favoriteButton;
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean favorite = false;
 
-    private final Runnable progressUpdater = new Runnable() {
-        @Override
-        public void run() {
-            updateProgress();
-            handler.postDelayed(this, 500);
-        }
-    };
+    private final Handler handler =
+            new Handler(Looper.getMainLooper());
+
+    private final Runnable progressUpdater =
+            new Runnable() {
+                @Override
+                public void run() {
+                    updateProgress();
+                    handler.postDelayed(this, 500);
+                }
+            };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,13 +90,19 @@ public class PlayerActivity extends Activity {
         );
 
         controllerFuture =
-                new MediaController.Builder(this, token).buildAsync();
+                new MediaController.Builder(
+                        this,
+                        token
+                ).buildAsync();
 
         controllerFuture.addListener(() -> {
             try {
                 controller = controllerFuture.get();
+
                 refreshPlayer();
+
                 handler.post(progressUpdater);
+
             } catch (Exception ignored) {
             }
         }, command -> handler.post(command));
@@ -96,14 +113,16 @@ public class PlayerActivity extends Activity {
         root = new FrameLayout(this);
 
         backgroundArtwork = new ImageView(this);
-        backgroundArtwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        backgroundArtwork.setAlpha(0.22f);
+        backgroundArtwork.setScaleType(
+                ImageView.ScaleType.CENTER_CROP
+        );
+        backgroundArtwork.setAlpha(0.24f);
 
         if (Build.VERSION.SDK_INT >= 31) {
             backgroundArtwork.setRenderEffect(
                     RenderEffect.createBlurEffect(
-                            45f,
-                            45f,
+                            48f,
+                            48f,
                             Shader.TileMode.CLAMP
                     )
             );
@@ -117,14 +136,15 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        View darkOverlay = new View(this);
+        darkOverlay = new View(this);
+
         darkOverlay.setBackground(
                 new GradientDrawable(
                         GradientDrawable.Orientation.TOP_BOTTOM,
                         new int[]{
-                                Color.argb(120, 5, 5, 8),
-                                Color.argb(210, 7, 7, 10),
-                                Color.argb(245, 7, 7, 10)
+                                Color.argb(125, 5, 5, 8),
+                                Color.argb(205, 7, 7, 10),
+                                Color.argb(248, 7, 7, 10)
                         }
                 )
         );
@@ -137,9 +157,17 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout content =
+                new LinearLayout(this);
+
+        content.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        content.setGravity(
+                Gravity.CENTER_HORIZONTAL
+        );
+
         content.setPadding(
                 dp(20),
                 dp(16),
@@ -147,42 +175,51 @@ public class PlayerActivity extends Activity {
                 dp(16)
         );
 
-        content.setOnApplyWindowInsetsListener((v, insets) -> {
+        content.setOnApplyWindowInsetsListener(
+                (v, insets) -> {
 
-            int left;
-            int top;
-            int right;
-            int bottom;
+                    int left;
+                    int top;
+                    int right;
+                    int bottom;
 
-            if (Build.VERSION.SDK_INT >= 30) {
+                    if (Build.VERSION.SDK_INT >= 30) {
 
-                android.graphics.Insets bars =
-                        insets.getInsets(
-                                android.view.WindowInsets.Type.systemBars()
-                        );
+                        android.graphics.Insets bars =
+                                insets.getInsets(
+                                        android.view.WindowInsets.Type.systemBars()
+                                );
 
-                left = bars.left;
-                top = bars.top;
-                right = bars.right;
-                bottom = bars.bottom;
+                        left = bars.left;
+                        top = bars.top;
+                        right = bars.right;
+                        bottom = bars.bottom;
 
-            } else {
+                    } else {
 
-                left = insets.getSystemWindowInsetLeft();
-                top = insets.getSystemWindowInsetTop();
-                right = insets.getSystemWindowInsetRight();
-                bottom = insets.getSystemWindowInsetBottom();
-            }
+                        left =
+                                insets.getSystemWindowInsetLeft();
 
-            v.setPadding(
-                    dp(20) + left,
-                    dp(16) + top,
-                    dp(20) + right,
-                    dp(16) + bottom
-            );
+                        top =
+                                insets.getSystemWindowInsetTop();
 
-            return insets;
-        });
+                        right =
+                                insets.getSystemWindowInsetRight();
+
+                        bottom =
+                                insets.getSystemWindowInsetBottom();
+                    }
+
+                    v.setPadding(
+                            dp(20) + left,
+                            dp(16) + top,
+                            dp(20) + right,
+                            dp(16) + bottom
+                    );
+
+                    return insets;
+                }
+        );
 
         root.addView(
                 content,
@@ -192,42 +229,71 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        root.post(() -> root.requestApplyInsets());
+        root.post(
+                () -> root.requestApplyInsets()
+        );
 
         // TOP BAR
 
-        LinearLayout topBar = new LinearLayout(this);
-        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout topBar =
+                new LinearLayout(this);
 
-        ImageButton close = iconButton(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                48
+        topBar.setGravity(
+                Gravity.CENTER_VERTICAL
         );
 
-        close.setOnClickListener(v -> finish());
+        ImageButton close =
+                iconButton(
+                        android.R.drawable
+                                .ic_menu_close_clear_cancel
+                );
 
-        topBar.addView(close);
+        close.setOnClickListener(
+                v -> finish()
+        );
 
-        LinearLayout heading = new LinearLayout(this);
-        heading.setOrientation(LinearLayout.VERTICAL);
-        heading.setGravity(Gravity.CENTER);
+        topBar.addView(
+                close,
+                new LinearLayout.LayoutParams(
+                        dp(48),
+                        dp(48)
+                )
+        );
 
-        TextView nowPlaying =
+        LinearLayout heading =
+                new LinearLayout(this);
+
+        heading.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        heading.setGravity(
+                Gravity.CENTER
+        );
+
+        heading.addView(
                 labelText(
                         "NOW PLAYING",
                         10,
-                        Color.rgb(180, 180, 190)
-                );
+                        Color.rgb(
+                                185,
+                                185,
+                                195
+                        )
+                )
+        );
 
-        TextView velora =
+        heading.addView(
                 labelText(
                         "VELORA",
                         9,
-                        Color.rgb(105, 105, 115)
-                );
-
-        heading.addView(nowPlaying);
-        heading.addView(velora);
+                        Color.rgb(
+                                112,
+                                112,
+                                122
+                        )
+                )
+        );
 
         topBar.addView(
                 heading,
@@ -240,15 +306,20 @@ public class PlayerActivity extends Activity {
 
         ImageButton more =
                 iconButton(
-                        android.R.drawable.ic_menu_more,
-                        48
+                        android.R.drawable.ic_menu_more
                 );
 
         more.setOnClickListener(
                 v -> showPlayerOptions()
         );
 
-        topBar.addView(more);
+        topBar.addView(
+                more,
+                new LinearLayout.LayoutParams(
+                        dp(48),
+                        dp(48)
+                )
+        );
 
         content.addView(
                 topBar,
@@ -265,25 +336,35 @@ public class PlayerActivity extends Activity {
                 Math.min(
                         getResources()
                                 .getDisplayMetrics()
-                                .widthPixels - dp(40),
+                                .widthPixels
+                                - dp(40),
+
                         (int) (
                                 getResources()
                                         .getDisplayMetrics()
-                                        .heightPixels * 0.39f
+                                        .heightPixels
+                                        * 0.39f
                         )
                 )
         );
 
         artwork = new ImageView(this);
+
         artwork.setScaleType(
                 ImageView.ScaleType.CENTER_CROP
         );
+
         artwork.setBackground(
                 roundedBackground(
-                        Color.rgb(39, 39, 47),
+                        Color.rgb(
+                                39,
+                                39,
+                                47
+                        ),
                         24
                 )
         );
+
         artwork.setClipToOutline(true);
 
         LinearLayout.LayoutParams artworkParams =
@@ -295,15 +376,18 @@ public class PlayerActivity extends Activity {
         artworkParams.gravity =
                 Gravity.CENTER_HORIZONTAL;
 
-        artworkParams.topMargin = dp(10);
-        artworkParams.bottomMargin = dp(18);
+        artworkParams.topMargin =
+                dp(10);
+
+        artworkParams.bottomMargin =
+                dp(18);
 
         content.addView(
                 artwork,
                 artworkParams
         );
 
-        // SONG INFO
+        // SONG INFORMATION
 
         LinearLayout infoRow =
                 new LinearLayout(this);
@@ -320,37 +404,117 @@ public class PlayerActivity extends Activity {
         );
 
         title = new TextView(this);
-        title.setText("Nothing Playing");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(23);
+
+        title.setText(
+                "Nothing Playing"
+        );
+
+        title.setTextColor(
+                Color.WHITE
+        );
+
+        title.setTextSize(
+                23
+        );
+
         title.setTypeface(
                 null,
                 android.graphics.Typeface.BOLD
         );
+
         title.setSingleLine(true);
 
-        artist = new TextView(this);
-        artist.setText("Velora Music");
-        artist.setTextColor(
-                Color.rgb(160, 160, 170)
+        title.setEllipsize(
+                android.text.TextUtils.TruncateAt.END
         );
-        artist.setTextSize(14);
+
+        artist = new TextView(this);
+
+        artist.setText(
+                "Velora Music"
+        );
+
+        artist.setTextColor(
+                Color.rgb(
+                        165,
+                        165,
+                        175
+                )
+        );
+
+        artist.setTextSize(
+                14
+        );
+
         artist.setPadding(
                 0,
                 dp(4),
                 0,
                 0
         );
+
         artist.setSingleLine(true);
+
+        artist.setEllipsize(
+                android.text.TextUtils.TruncateAt.END
+        );
+
+        qualityBadge =
+                labelText(
+                        "HI-FI",
+                        9,
+                        Color.rgb(
+                                205,
+                                190,
+                                255
+                        )
+                );
+
+        qualityBadge.setGravity(
+                Gravity.CENTER
+        );
+
+        qualityBadge.setPadding(
+                dp(7),
+                0,
+                dp(7),
+                0
+        );
+
+        qualityBadge.setBackground(
+                roundedBackground(
+                        Color.argb(
+                                42,
+                                190,
+                                169,
+                                255
+                        ),
+                        9
+                )
+        );
+
+        LinearLayout.LayoutParams badgeParams =
+                new LinearLayout.LayoutParams(
+                        dp(60),
+                        dp(24)
+                );
+
+        badgeParams.topMargin =
+                dp(7);
 
         songInfo.addView(title);
         songInfo.addView(artist);
+
+        songInfo.addView(
+                qualityBadge,
+                badgeParams
+        );
 
         infoRow.addView(
                 songInfo,
                 new LinearLayout.LayoutParams(
                         0,
-                        dp(62),
+                        dp(82),
                         1
                 )
         );
@@ -358,9 +522,13 @@ public class PlayerActivity extends Activity {
         favoriteButton =
                 labelText(
                         "♡",
-                        30,
+                        31,
                         Color.WHITE
                 );
+
+        favoriteButton.setGravity(
+                Gravity.CENTER
+        );
 
         favoriteButton.setOnClickListener(
                 v -> toggleFavorite()
@@ -370,11 +538,13 @@ public class PlayerActivity extends Activity {
                 favoriteButton,
                 new LinearLayout.LayoutParams(
                         dp(52),
-                        dp(52)
+                        dp(58)
                 )
         );
 
-        content.addView(infoRow);
+        content.addView(
+                infoRow
+        );
 
         // PROGRESS
 
@@ -391,10 +561,23 @@ public class PlayerActivity extends Activity {
         totalTime =
                 timeText("0:00");
 
-        progress = new SeekBar(this);
-        progress.setMax(1000);
-        progress.setProgress(0);
-        progress.setPadding(0, 0, 0, 0);
+        progress =
+                new SeekBar(this);
+
+        progress.setMax(
+                1000
+        );
+
+        progress.setProgress(
+                0
+        );
+
+        progress.setPadding(
+                0,
+                0,
+                0,
+                0
+        );
 
         progress.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
@@ -406,8 +589,10 @@ public class PlayerActivity extends Activity {
                             boolean fromUser
                     ) {
 
-                        if (fromUser &&
-                                controller != null) {
+                        if (
+                                fromUser &&
+                                controller != null
+                        ) {
 
                             long duration =
                                     controller.getDuration();
@@ -479,9 +664,11 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        content.addView(timeRow);
+        content.addView(
+                timeRow
+        );
 
-        // PLAYBACK CONTROLS
+        // CONTROLS
 
         LinearLayout controls =
                 new LinearLayout(this);
@@ -492,32 +679,43 @@ public class PlayerActivity extends Activity {
 
         ImageButton previous =
                 iconButton(
-                        android.R.drawable.ic_media_previous,
-                        64
+                        android.R.drawable
+                                .ic_media_previous
                 );
 
-        previous.setOnClickListener(v -> {
+        previous.setOnClickListener(
+                v -> {
 
-            if (controller != null) {
-                controller.seekToPreviousMediaItem();
-            }
-        });
+                    if (controller != null) {
+                        controller
+                                .seekToPreviousMediaItem();
+                    }
+                }
+        );
 
         playButton =
                 iconButton(
-                        android.R.drawable.ic_media_play,
-                        76
+                        android.R.drawable
+                                .ic_media_play
                 );
 
         playButton.setBackground(
                 roundedBackground(
-                        Color.rgb(190, 169, 255),
+                        Color.rgb(
+                                190,
+                                169,
+                                255
+                        ),
                         50
                 )
         );
 
         playButton.setColorFilter(
-                Color.rgb(18, 17, 23)
+                Color.rgb(
+                        18,
+                        17,
+                        23
+                )
         );
 
         playButton.setPadding(
@@ -533,23 +731,32 @@ public class PlayerActivity extends Activity {
 
         ImageButton next =
                 iconButton(
-                        android.R.drawable.ic_media_next,
-                        64
+                        android.R.drawable
+                                .ic_media_next
                 );
 
-        next.setOnClickListener(v -> {
+        next.setOnClickListener(
+                v -> {
 
-            if (controller != null) {
-                controller.seekToNextMediaItem();
-            }
-        });
+                    if (controller != null) {
+                        controller
+                                .seekToNextMediaItem();
+                    }
+                }
+        );
 
-        controls.addView(previous);
+        controls.addView(
+                previous,
+                new LinearLayout.LayoutParams(
+                        dp(64),
+                        dp(64)
+                )
+        );
 
         LinearLayout.LayoutParams playParams =
                 new LinearLayout.LayoutParams(
-                        dp(76),
-                        dp(76)
+                        dp(78),
+                        dp(78)
                 );
 
         playParams.setMargins(
@@ -564,13 +771,19 @@ public class PlayerActivity extends Activity {
                 playParams
         );
 
-        controls.addView(next);
+        controls.addView(
+                next,
+                new LinearLayout.LayoutParams(
+                        dp(64),
+                        dp(64)
+                )
+        );
 
         content.addView(
                 controls,
                 new LinearLayout.LayoutParams(
                         -1,
-                        dp(82)
+                        dp(84)
                 )
         );
 
@@ -587,19 +800,34 @@ public class PlayerActivity extends Activity {
                 labelText(
                         "−",
                         18,
-                        Color.rgb(155, 155, 165)
+                        Color.rgb(
+                                155,
+                                155,
+                                165
+                        )
                 );
 
         TextView high =
                 labelText(
                         "+",
                         18,
-                        Color.rgb(155, 155, 165)
+                        Color.rgb(
+                                155,
+                                155,
+                                165
+                        )
                 );
 
-        volume = new SeekBar(this);
-        volume.setMax(100);
-        volume.setProgress(100);
+        volume =
+                new SeekBar(this);
+
+        volume.setMax(
+                100
+        );
+
+        volume.setProgress(
+                100
+        );
 
         volume.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
@@ -611,8 +839,10 @@ public class PlayerActivity extends Activity {
                             boolean fromUser
                     ) {
 
-                        if (fromUser &&
-                                controller != null) {
+                        if (
+                                fromUser &&
+                                controller != null
+                        ) {
 
                             controller.setVolume(
                                     value / 100f
@@ -659,9 +889,11 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        content.addView(volumeRow);
+        content.addView(
+                volumeRow
+        );
 
-        // LOWER GLASS PANEL
+        // BOTTOM ACTION PANEL
 
         LinearLayout glassPanel =
                 new LinearLayout(this);
@@ -679,7 +911,12 @@ public class PlayerActivity extends Activity {
 
         glassPanel.setBackground(
                 roundedBackground(
-                        Color.argb(55, 255, 255, 255),
+                        Color.argb(
+                                52,
+                                255,
+                                255,
+                                255
+                        ),
                         22
                 )
         );
@@ -690,27 +927,19 @@ public class PlayerActivity extends Activity {
         TextView queue =
                 actionText("QUEUE");
 
-        TextView lossless =
-                actionText("LOSSLESS");
-
-        lossless.setTextColor(
-                Color.rgb(198, 181, 255)
-        );
+        TextView moreAction =
+                actionText("MORE");
 
         lyrics.setOnClickListener(
-                v -> Toast.makeText(
-                        this,
-                        "Lyrics will appear when available.",
-                        Toast.LENGTH_SHORT
-                ).show()
+                v -> showLyrics()
         );
 
         queue.setOnClickListener(
-                v -> Toast.makeText(
-                        this,
-                        "Queue controls coming from your library.",
-                        Toast.LENGTH_SHORT
-                ).show()
+                v -> showQueue()
+        );
+
+        moreAction.setOnClickListener(
+                v -> showPlayerOptions()
         );
 
         glassPanel.addView(
@@ -724,7 +953,7 @@ public class PlayerActivity extends Activity {
         );
 
         glassPanel.addView(
-                lossless,
+                moreAction,
                 actionParams()
         );
 
@@ -734,7 +963,8 @@ public class PlayerActivity extends Activity {
                         dp(52)
                 );
 
-        glassParams.topMargin = dp(7);
+        glassParams.topMargin =
+                dp(7);
 
         content.addView(
                 glassPanel,
@@ -763,8 +993,17 @@ public class PlayerActivity extends Activity {
                     "Velora Music"
             );
 
-            artwork.setImageDrawable(null);
-            backgroundArtwork.setImageDrawable(null);
+            qualityBadge.setText(
+                    "READY"
+            );
+
+            artwork.setImageDrawable(
+                    null
+            );
+
+            backgroundArtwork.setImageDrawable(
+                    null
+            );
 
             return;
         }
@@ -782,15 +1021,23 @@ public class PlayerActivity extends Activity {
                         ? metadata.artist.toString()
                         : "Unknown Artist";
 
-        title.setText(songTitle);
-        artist.setText(songArtist);
+        title.setText(
+                songTitle
+        );
+
+        artist.setText(
+                songArtist
+        );
 
         updateArtwork(item);
+        updateQualityBadge(item);
 
         playButton.setImageResource(
                 controller.isPlaying()
-                        ? android.R.drawable.ic_media_pause
-                        : android.R.drawable.ic_media_play
+                        ? android.R.drawable
+                                .ic_media_pause
+                        : android.R.drawable
+                                .ic_media_play
         );
 
         volume.setProgress(
@@ -820,25 +1067,214 @@ public class PlayerActivity extends Activity {
                     );
         }
 
-        if (bitmap == null &&
-                item.localConfiguration != null) {
-
-            Uri uri =
-                    item.localConfiguration.uri;
+        if (
+                bitmap == null &&
+                item.localConfiguration != null
+        ) {
 
             bitmap =
-                    getEmbeddedArtwork(uri);
+                    getEmbeddedArtwork(
+                            item.localConfiguration.uri
+                    );
         }
 
         if (bitmap != null) {
 
-            artwork.setImageBitmap(bitmap);
-            backgroundArtwork.setImageBitmap(bitmap);
+            artwork.setImageBitmap(
+                    bitmap
+            );
+
+            backgroundArtwork.setImageBitmap(
+                    bitmap
+            );
+
+            applyArtworkTint(
+                    bitmap
+            );
 
         } else {
 
-            artwork.setImageDrawable(null);
-            backgroundArtwork.setImageDrawable(null);
+            artwork.setImageDrawable(
+                    null
+            );
+
+            backgroundArtwork.setImageDrawable(
+                    null
+            );
+
+            resetBackgroundTint();
+        }
+    }
+
+    private void applyArtworkTint(
+            Bitmap bitmap
+    ) {
+
+        int stepX =
+                Math.max(
+                        1,
+                        bitmap.getWidth() / 24
+                );
+
+        int stepY =
+                Math.max(
+                        1,
+                        bitmap.getHeight() / 24
+                );
+
+        long r = 0;
+        long g = 0;
+        long b = 0;
+
+        int count = 0;
+
+        for (
+                int y = 0;
+                y < bitmap.getHeight();
+                y += stepY
+        ) {
+
+            for (
+                    int x = 0;
+                    x < bitmap.getWidth();
+                    x += stepX
+            ) {
+
+                int c =
+                        bitmap.getPixel(
+                                x,
+                                y
+                        );
+
+                r += Color.red(c);
+                g += Color.green(c);
+                b += Color.blue(c);
+
+                count++;
+            }
+        }
+
+        if (count == 0) {
+            return;
+        }
+
+        int rr =
+                Math.min(
+                        95,
+                        (int) (
+                                r /
+                                        count *
+                                        0.55f
+                        )
+                );
+
+        int gg =
+                Math.min(
+                        95,
+                        (int) (
+                                g /
+                                        count *
+                                        0.55f
+                        )
+                );
+
+        int bb =
+                Math.min(
+                        110,
+                        (int) (
+                                b /
+                                        count *
+                                        0.65f
+                        )
+                );
+
+        darkOverlay.setBackground(
+                new GradientDrawable(
+                        GradientDrawable
+                                .Orientation.TOP_BOTTOM,
+                        new int[]{
+                                Color.argb(
+                                        100,
+                                        rr,
+                                        gg,
+                                        bb
+                                ),
+                                Color.argb(
+                                        218,
+                                        7,
+                                        7,
+                                        10
+                                ),
+                                Color.argb(
+                                        250,
+                                        7,
+                                        7,
+                                        10
+                                )
+                        }
+                )
+        );
+    }
+
+    private void resetBackgroundTint() {
+
+        darkOverlay.setBackground(
+                new GradientDrawable(
+                        GradientDrawable
+                                .Orientation.TOP_BOTTOM,
+                        new int[]{
+                                Color.argb(
+                                        125,
+                                        5,
+                                        5,
+                                        8
+                                ),
+                                Color.argb(
+                                        205,
+                                        7,
+                                        7,
+                                        10
+                                ),
+                                Color.argb(
+                                        248,
+                                        7,
+                                        7,
+                                        10
+                                )
+                        }
+                )
+        );
+    }
+
+    private void updateQualityBadge(
+            MediaItem item
+    ) {
+
+        String value =
+                item.localConfiguration == null
+                        ? ""
+                        : item.localConfiguration.uri
+                                .toString()
+                                .toLowerCase(
+                                        Locale.US
+                                );
+
+        if (
+                value.endsWith(".flac") ||
+                value.endsWith(".wav") ||
+                value.endsWith(".alac") ||
+                value.contains("flac")
+        ) {
+
+            qualityBadge.setText(
+                    "LOSSLESS"
+            );
+
+        } else {
+
+            qualityBadge.setText(
+                    "HI-FI"
+            );
         }
     }
 
@@ -898,31 +1334,191 @@ public class PlayerActivity extends Activity {
 
     private void toggleFavorite() {
 
-        if ("♡".contentEquals(
-                favoriteButton.getText()
-        )) {
+        favorite =
+                !favorite;
 
-            favoriteButton.setText("♥");
-            favoriteButton.setTextColor(
-                    Color.rgb(205, 190, 255)
+        favoriteButton.setText(
+                favorite
+                        ? "♥"
+                        : "♡"
+        );
+
+        favoriteButton.setTextColor(
+                favorite
+                        ? Color.rgb(
+                                205,
+                                190,
+                                255
+                        )
+                        : Color.WHITE
+        );
+    }
+
+    private void showQueue() {
+
+        if (
+                controller == null ||
+                controller.getMediaItemCount() == 0
+        ) {
+
+            showMessage(
+                    "Queue",
+                    "Your queue is empty."
             );
 
-        } else {
-
-            favoriteButton.setText("♡");
-            favoriteButton.setTextColor(
-                    Color.WHITE
-            );
+            return;
         }
+
+        List<String> names =
+                new ArrayList<>();
+
+        for (
+                int i = 0;
+                i < controller.getMediaItemCount();
+                i++
+        ) {
+
+            MediaMetadata metadata =
+                    controller
+                            .getMediaItemAt(i)
+                            .mediaMetadata;
+
+            String name =
+                    metadata.title != null
+                            ? metadata.title.toString()
+                            : "Unknown Song";
+
+            if (
+                    i ==
+                            controller
+                                    .getCurrentMediaItemIndex()
+            ) {
+
+                name =
+                        "▶  " + name;
+            }
+
+            names.add(name);
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Queue")
+                .setItems(
+                        names.toArray(
+                                new String[0]
+                        ),
+                        (dialog, which) -> {
+
+                            controller.seekToDefaultPosition(
+                                    which
+                            );
+                        }
+                )
+                .setNegativeButton(
+                        "Close",
+                        null
+                )
+                .show();
+    }
+
+    private void showLyrics() {
+
+        if (
+                controller == null ||
+                controller.getCurrentMediaItem() == null
+        ) {
+
+            showMessage(
+                    "Lyrics",
+                    "Nothing is playing."
+            );
+
+            return;
+        }
+
+        MediaMetadata metadata =
+                controller
+                        .getCurrentMediaItem()
+                        .mediaMetadata;
+
+        String text =
+                metadata.description != null
+                        ? metadata.description.toString()
+                        : "Lyrics are not available for this track yet.";
+
+        new AlertDialog.Builder(this)
+                .setTitle("Lyrics")
+                .setMessage(text)
+                .setPositiveButton(
+                        "Done",
+                        null
+                )
+                .show();
     }
 
     private void showPlayerOptions() {
 
-        Toast.makeText(
-                this,
-                "Player options",
-                Toast.LENGTH_SHORT
-        ).show();
+        if (controller == null) {
+            return;
+        }
+
+        String[] options = {
+                controller.getRepeatMode()
+                        == Player.REPEAT_MODE_OFF
+                        ? "Repeat: Off"
+                        : "Repeat: On",
+
+                controller.getShuffleModeEnabled()
+                        ? "Shuffle: On"
+                        : "Shuffle: Off",
+
+                "Close"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle("Player")
+                .setItems(
+                        options,
+                        (dialog, which) -> {
+
+                            if (which == 0) {
+
+                                controller.setRepeatMode(
+                                        controller.getRepeatMode()
+                                                == Player.REPEAT_MODE_OFF
+                                                ? Player.REPEAT_MODE_ALL
+                                                : Player.REPEAT_MODE_OFF
+                                );
+
+                                showPlayerOptions();
+
+                            } else if (which == 1) {
+
+                                controller.setShuffleModeEnabled(
+                                        !controller
+                                                .getShuffleModeEnabled()
+                                );
+
+                                showPlayerOptions();
+                            }
+                        }
+                )
+                .show();
+    }
+
+    private void showMessage(
+            String heading,
+            String message
+    ) {
+
+        new AlertDialog.Builder(this)
+                .setTitle(heading)
+                .setMessage(message)
+                .setPositiveButton(
+                        "OK",
+                        null
+                )
+                .show();
     }
 
     private void updateProgress() {
@@ -939,14 +1535,14 @@ public class PlayerActivity extends Activity {
 
         if (duration > 0) {
 
-            int value =
-                    (int) (
+            progress.setProgress(
+                    (int) Math.min(
+                            1000L,
                             position *
                                     1000L /
                                     duration
-                    );
-
-            progress.setProgress(value);
+                    )
+            );
 
             currentTime.setText(
                     formatTime(position)
@@ -958,7 +1554,9 @@ public class PlayerActivity extends Activity {
 
         } else {
 
-            progress.setProgress(0);
+            progress.setProgress(
+                    0
+            );
 
             currentTime.setText(
                     "0:00"
@@ -971,20 +1569,24 @@ public class PlayerActivity extends Activity {
 
         playButton.setImageResource(
                 controller.isPlaying()
-                        ? android.R.drawable.ic_media_pause
-                        : android.R.drawable.ic_media_play
+                        ? android.R.drawable
+                                .ic_media_pause
+                        : android.R.drawable
+                                .ic_media_play
         );
     }
 
     private ImageButton iconButton(
-            int icon,
-            int size
+            int icon
     ) {
 
         ImageButton button =
                 new ImageButton(this);
 
-        button.setImageResource(icon);
+        button.setImageResource(
+                icon
+        );
+
         button.setBackgroundColor(
                 Color.TRANSPARENT
         );
@@ -1020,9 +1622,18 @@ public class PlayerActivity extends Activity {
         TextView view =
                 new TextView(this);
 
-        view.setText(text);
-        view.setTextColor(color);
-        view.setTextSize(size);
+        view.setText(
+                text
+        );
+
+        view.setTextColor(
+                color
+        );
+
+        view.setTextSize(
+                size
+        );
+
         view.setGravity(
                 Gravity.CENTER
         );
@@ -1054,9 +1665,9 @@ public class PlayerActivity extends Activity {
                         text,
                         10,
                         Color.rgb(
-                                185,
-                                185,
-                                195
+                                190,
+                                190,
+                                200
                         )
                 );
 
@@ -1085,7 +1696,9 @@ public class PlayerActivity extends Activity {
         GradientDrawable drawable =
                 new GradientDrawable();
 
-        drawable.setColor(color);
+        drawable.setColor(
+                color
+        );
 
         drawable.setCornerRadius(
                 dp(radiusDp)
@@ -1163,6 +1776,7 @@ public class PlayerActivity extends Activity {
         );
 
         if (controllerFuture != null) {
+
             MediaController.releaseFuture(
                     controllerFuture
             );
