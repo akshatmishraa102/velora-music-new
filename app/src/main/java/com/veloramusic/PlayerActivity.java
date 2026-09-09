@@ -459,56 +459,12 @@ public class PlayerActivity extends Activity {
                 android.text.TextUtils.TruncateAt.END
         );
 
-        qualityBadge =
-                labelText(
-                        "HI-FI",
-                        9,
-                        Color.rgb(
-                                205,
-                                190,
-                                255
-                        )
-                );
 
-        qualityBadge.setGravity(
-                Gravity.CENTER
-        );
-
-        qualityBadge.setPadding(
-                dp(7),
-                0,
-                dp(7),
-                0
-        );
-
-        qualityBadge.setBackground(
-                roundedBackground(
-                        Color.argb(
-                                42,
-                                190,
-                                169,
-                                255
-                        ),
-                        9
-                )
-        );
-
-        LinearLayout.LayoutParams badgeParams =
-                new LinearLayout.LayoutParams(
-                        dp(60),
-                        dp(24)
-                );
-
-        badgeParams.topMargin =
-                dp(7);
 
         songInfo.addView(title);
         songInfo.addView(artist);
 
-        songInfo.addView(
-                qualityBadge,
-                badgeParams
-        );
+    
 
         infoRow.addView(
                 songInfo,
