@@ -366,6 +366,47 @@ public class PlayerActivity extends Activity {
         );
 
         artwork.setClipToOutline(true);
+        artwork.setOnTouchListener(new View.OnTouchListener() {
+    private float downX;
+
+    @Override
+    public boolean onTouch(View v, android.view.MotionEvent event) {
+        switch (event.getAction()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                downX = event.getX();
+                return true;
+
+            case android.view.MotionEvent.ACTION_UP:
+                float deltaX = event.getX() - downX;
+
+                if (Math.abs(deltaX) > dp(70) && controller != null) {
+                    if (deltaX < 0) {
+                        controller.seekToNextMediaItem();
+                    } else {
+                        controller.seekToPreviousMediaItem();
+                    }
+
+                    artwork.animate()
+                            .scaleX(0.97f)
+                            .scaleY(0.97f)
+                            .setDuration(80)
+                            .withEndAction(() ->
+                                    artwork.animate()
+                                            .scaleX(1f)
+                                            .scaleY(1f)
+                                            .setDuration(140)
+                                            .start())
+                            .start();
+
+                    return true;
+                }
+
+                return true;
+        }
+
+        return true;
+    }
+});
 
         LinearLayout.LayoutParams artworkParams =
                 new LinearLayout.LayoutParams(
