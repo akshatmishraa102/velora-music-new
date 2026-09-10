@@ -1418,40 +1418,257 @@ public class PlayerActivity extends Activity {
                 .show();
     }
 
-    private void showLyrics() {
+private void showLyrics() {
 
-        if (
-                controller == null ||
-                controller.getCurrentMediaItem() == null
-        ) {
+    if (
+            controller == null ||
+            controller.getCurrentMediaItem() == null
+    ) {
+        showMessage(
+                "Lyrics",
+                "Nothing is playing."
+        );
+        return;
+    }
 
-            showMessage(
-                    "Lyrics",
-                    "Nothing is playing."
+    MediaMetadata metadata =
+            controller
+                    .getCurrentMediaItem()
+                    .mediaMetadata;
+
+    String lyricsText =
+            metadata.description != null
+                    ? metadata.description.toString()
+                    : "Lyrics are not available for this track yet.";
+
+    FrameLayout lyricsOverlay =
+            new FrameLayout(this);
+
+    lyricsOverlay.setBackgroundColor(
+            Color.rgb(8, 8, 11)
+    );
+
+    LinearLayout lyricsContainer =
+            new LinearLayout(this);
+
+    lyricsContainer.setOrientation(
+            LinearLayout.VERTICAL
+    );
+
+    lyricsContainer.setPadding(
+            dp(20),
+            dp(18),
+            dp(20),
+            dp(20)
+    );
+
+    // TOP BAR
+
+    LinearLayout topBar =
+            new LinearLayout(this);
+
+    topBar.setGravity(
+            Gravity.CENTER_VERTICAL
+    );
+
+    ImageButton closeLyrics =
+            iconButton(
+                    android.R.drawable
+                            .ic_menu_close_clear_cancel
             );
 
-            return;
-        }
+    closeLyrics.setOnClickListener(
+            v -> {
+                lyricsOverlay.animate()
+                        .alpha(0f)
+                        .setDuration(180)
+                        .withEndAction(
+                                () -> root.removeView(
+                                        lyricsOverlay
+                                )
+                        )
+                        .start();
+            }
+    );
 
-        MediaMetadata metadata =
-                controller
-                        .getCurrentMediaItem()
-                        .mediaMetadata;
+    topBar.addView(
+            closeLyrics,
+            new LinearLayout.LayoutParams(
+                    dp(48),
+                    dp(48)
+            )
+    );
 
-        String text =
-                metadata.description != null
-                        ? metadata.description.toString()
-                        : "Lyrics are not available for this track yet.";
+    LinearLayout heading =
+            new LinearLayout(this);
 
-        new AlertDialog.Builder(this)
-                .setTitle("Lyrics")
-                .setMessage(text)
-                .setPositiveButton(
-                        "Done",
-                        null
-                )
-                .show();
-    }
+    heading.setOrientation(
+            LinearLayout.VERTICAL
+    );
+
+    heading.setGravity(
+            Gravity.CENTER
+    );
+
+    TextView headingTitle =
+            labelText(
+                    "LYRICS",
+                    11,
+                    Color.rgb(
+                            190,
+                            190,
+                            200
+                    )
+            );
+
+    TextView headingSong =
+            labelText(
+                    title.getText().toString(),
+                    9,
+                    Color.rgb(
+                            115,
+                            115,
+                            125
+                    )
+            );
+
+    heading.addView(
+            headingTitle
+    );
+
+    heading.addView(
+            headingSong
+    );
+
+    topBar.addView(
+            heading,
+            new LinearLayout.LayoutParams(
+                    0,
+                    dp(48),
+                    1
+            )
+    );
+
+    lyricsContainer.addView(
+            topBar,
+            new LinearLayout.LayoutParams(
+                    -1,
+                    dp(58)
+            )
+    );
+
+    // LYRICS
+
+    android.widget.ScrollView scroll =
+            new android.widget.ScrollView(this);
+
+    scroll.setFillViewport(true);
+
+    TextView lyrics =
+            new TextView(this);
+
+    lyrics.setText(
+            lyricsText
+    );
+
+    lyrics.setTextColor(
+            Color.rgb(
+                    242,
+                    242,
+                    246
+            )
+    );
+
+    lyrics.setTextSize(
+            21
+    );
+
+    lyrics.setGravity(
+            Gravity.CENTER_HORIZONTAL
+    );
+
+    lyrics.setLineSpacing(
+            dp(7),
+            1.12f
+    );
+
+    lyrics.setPadding(
+            dp(12),
+            dp(35),
+            dp(12),
+            dp(60)
+    );
+
+    scroll.addView(
+            lyrics,
+            new android.widget.ScrollView.LayoutParams(
+                    -1,
+                    -2
+            )
+    );
+
+    lyricsContainer.addView(
+            scroll,
+            new LinearLayout.LayoutParams(
+                    -1,
+                    0,
+                    1
+            )
+    );
+
+    // PLAYER INDICATOR
+
+    TextView playing =
+            labelText(
+                    "NOW PLAYING",
+                    9,
+                    Color.rgb(
+                            190,
+                            170,
+                            245
+                    )
+            );
+
+    playing.setPadding(
+            0,
+            dp(5),
+            0,
+            dp(5)
+    );
+
+    lyricsContainer.addView(
+            playing,
+            new LinearLayout.LayoutParams(
+                    -1,
+                    dp(32)
+            )
+    );
+
+    lyricsOverlay.addView(
+            lyricsContainer,
+            new FrameLayout.LayoutParams(
+                    -1,
+                    -1
+            )
+    );
+
+    lyricsOverlay.setAlpha(
+            0f
+    );
+
+    root.addView(
+            lyricsOverlay,
+            new FrameLayout.LayoutParams(
+                    -1,
+                    -1
+            )
+    );
+
+    lyricsOverlay.animate()
+            .alpha(1f)
+            .setDuration(220)
+            .start();
+}
 
     private void showPlayerOptions() {
 
