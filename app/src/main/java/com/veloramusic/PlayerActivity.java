@@ -214,37 +214,46 @@ public class PlayerActivity extends Activity {
 
         LinearLayout topBar = new LinearLayout(this);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setPadding(0, dp(4), 0, 0);
+        topBar.setPadding(dp(8), dp(12), dp(8), dp(8));
 
         ImageButton close = iconButton(android.R.drawable.ic_menu_close_clear_cancel);
         close.setOnClickListener(v -> finish());
 
-        LinearLayout heading = new LinearLayout(this);
-        heading.setOrientation(LinearLayout.VERTICAL);
-        heading.setGravity(Gravity.CENTER);
-        TextView liveBadge = labelText("NOW PLAYING", 10, Color.rgb(188, 188, 202));
-        TextView brandBadge = labelText("VELORA", 9, Color.rgb(118, 118, 128));
-        heading.addView(liveBadge);
-        heading.addView(brandBadge);
+        LinearLayout dragWrap = new LinearLayout(this);
+        dragWrap.setGravity(Gravity.CENTER);
+        dragWrap.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+
+        View dragHandle = new View(this);
+        dragHandle.setBackground(roundedBackground(Color.argb(170, 255, 255, 255), 999));
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(42), dp(5));
+        handleParams.gravity = Gravity.CENTER;
+        dragWrap.addView(dragHandle, handleParams);
+
+        TextView brandBadge = labelText("VELORA", 9, Color.argb(180, 255, 255, 255));
+        brandBadge.setGravity(Gravity.CENTER);
+        brandBadge.setPadding(dp(8), 0, dp(8), 0);
 
         ImageButton more = iconButton(android.R.drawable.ic_menu_more);
         more.setOnClickListener(v -> showPlayerOptions());
 
         topBar.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        topBar.addView(heading, new LinearLayout.LayoutParams(0, dp(52), 1));
+        topBar.addView(dragWrap, new LinearLayout.LayoutParams(0, -2, 1));
+        topBar.addView(brandBadge, new LinearLayout.LayoutParams(-2, -2));
         topBar.addView(more, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
-        content.addView(topBar, new LinearLayout.LayoutParams(-1, dp(52)));
+        content.addView(topBar, new LinearLayout.LayoutParams(-1, dp(60)));
 
         playerScreen = new LinearLayout(this);
         playerScreen.setOrientation(LinearLayout.VERTICAL);
         playerScreen.setGravity(Gravity.CENTER_HORIZONTAL);
+        playerScreen.setPadding(0, dp(4), 0, dp(24));
 
+        int displayWidth = getResources().getDisplayMetrics().widthPixels;
         int artworkSize = Math.min(
-                dp(320),
-                Math.min(
-                        getResources().getDisplayMetrics().widthPixels - dp(42),
-                        (int) (getResources().getDisplayMetrics().heightPixels * 0.42f)
+                dp(360),
+                Math.max(
+                        dp(270),
+                        displayWidth - dp(62)
                 )
         );
 
@@ -252,10 +261,18 @@ public class PlayerActivity extends Activity {
         artworkWrap.setLayoutParams(new LinearLayout.LayoutParams(artworkSize, artworkSize));
         artworkWrap.setPadding(dp(10), dp(10), dp(10), dp(10));
 
+        View artworkShadow = new View(this);
+        artworkShadow.setBackground(roundedBackground(Color.argb(55, 0, 0, 0), 30));
+        artworkShadow.setElevation(dp(18));
+        FrameLayout.LayoutParams shadowParams = new FrameLayout.LayoutParams(-1, -1);
+        shadowParams.setMargins(dp(14), dp(18), dp(14), dp(8));
+        artworkWrap.addView(artworkShadow, shadowParams);
+
         artwork = new ImageView(this);
         artwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        artwork.setBackground(roundedBackground(Color.rgb(36, 36, 44), 26));
+        artwork.setBackground(roundedBackground(Color.rgb(31, 30, 40), 30));
         artwork.setClipToOutline(true);
+        artwork.setImageDrawable(null);
         artwork.setOnTouchListener(new View.OnTouchListener() {
             private float downX;
 
@@ -293,33 +310,33 @@ public class PlayerActivity extends Activity {
             }
         });
 
-        FrameLayout.LayoutParams artworkParams =
-                new FrameLayout.LayoutParams(artworkSize - dp(20), artworkSize - dp(20));
-        artworkParams.gravity = Gravity.CENTER;
+        FrameLayout.LayoutParams artworkParams = new FrameLayout.LayoutParams(-1, -1);
+        artworkParams.setMargins(dp(10), dp(8), dp(10), dp(10));
         artworkWrap.addView(artwork, artworkParams);
 
         playerScreen.addView(artworkWrap, new LinearLayout.LayoutParams(artworkSize, artworkSize));
 
         LinearLayout metaRow = new LinearLayout(this);
         metaRow.setGravity(Gravity.CENTER_VERTICAL);
-        metaRow.setPadding(0, dp(10), 0, dp(4));
+        metaRow.setPadding(dp(6), dp(18), dp(6), dp(4));
 
         LinearLayout songInfo = new LinearLayout(this);
         songInfo.setOrientation(LinearLayout.VERTICAL);
+        songInfo.setPadding(0, 0, dp(8), 0);
 
         title = new TextView(this);
         title.setText("Nothing Playing");
         title.setTextColor(Color.WHITE);
-        title.setTextSize(24);
+        title.setTextSize(28);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         artist = new TextView(this);
         artist.setText("Velora Music");
-        artist.setTextColor(Color.rgb(169, 169, 180));
+        artist.setTextColor(Color.argb(200, 234, 234, 242));
         artist.setTextSize(14);
-        artist.setPadding(0, dp(2), 0, 0);
+        artist.setPadding(0, dp(4), 0, 0);
         artist.setSingleLine(true);
         artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
@@ -328,24 +345,31 @@ public class PlayerActivity extends Activity {
 
         metaRow.addView(songInfo, new LinearLayout.LayoutParams(0, -2, 1));
 
-        qualityBadge = labelText("HI-FI", 11, Color.rgb(206, 199, 255));
-        qualityBadge.setBackground(roundedBackground(Color.argb(55, 190, 169, 255), 20));
-        qualityBadge.setPadding(dp(10), dp(5), dp(10), dp(5));
+        LinearLayout infoActions = new LinearLayout(this);
+        infoActions.setOrientation(LinearLayout.VERTICAL);
+        infoActions.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        qualityBadge = labelText("HI-FI", 10, Color.argb(220, 238, 236, 255));
+        qualityBadge.setBackground(roundedBackground(Color.argb(38, 219, 214, 255), 18));
+        qualityBadge.setPadding(dp(10), dp(6), dp(10), dp(6));
         qualityBadge.setGravity(Gravity.CENTER);
 
-        favoriteButton = labelText("♡", 30, Color.WHITE);
+        favoriteButton = labelText("♡", 26, Color.WHITE);
+        favoriteButton.setBackground(roundedBackground(Color.argb(20, 255, 255, 255), 18));
         favoriteButton.setGravity(Gravity.CENTER);
-        favoriteButton.setPadding(dp(10), 0, dp(8), 0);
+        favoriteButton.setPadding(dp(12), dp(8), dp(12), dp(8));
         favoriteButton.setOnClickListener(v -> toggleFavorite());
 
-        metaRow.addView(qualityBadge, new LinearLayout.LayoutParams(-2, -2));
-        metaRow.addView(favoriteButton, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        infoActions.addView(qualityBadge, new LinearLayout.LayoutParams(-2, -2));
+        infoActions.addView(favoriteButton, new LinearLayout.LayoutParams(dp(52), dp(52)));
+
+        metaRow.addView(infoActions, new LinearLayout.LayoutParams(-2, -2));
 
         playerScreen.addView(metaRow, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout timeRow = new LinearLayout(this);
         timeRow.setGravity(Gravity.CENTER_VERTICAL);
-        timeRow.setPadding(0, dp(10), 0, 0);
+        timeRow.setPadding(dp(4), dp(18), dp(4), 0);
 
         currentTime = timeText("0:00");
         totalTime = timeText("0:00");
@@ -354,6 +378,8 @@ public class PlayerActivity extends Activity {
         progress.setMax(1000);
         progress.setProgress(0);
         progress.setPadding(0, 0, 0, 0);
+        progress.setThumbOffset(dp(6));
+        progress.setBackground(null);
         progress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
@@ -380,17 +406,19 @@ public class PlayerActivity extends Activity {
             }
         });
 
-        timeRow.addView(currentTime, new LinearLayout.LayoutParams(dp(42), dp(32)));
-        timeRow.addView(progress, new LinearLayout.LayoutParams(0, dp(42), 1));
-        timeRow.addView(totalTime, new LinearLayout.LayoutParams(dp(42), dp(32)));
+        timeRow.addView(currentTime, new LinearLayout.LayoutParams(dp(44), dp(32)));
+        timeRow.addView(progress, new LinearLayout.LayoutParams(0, dp(38), 1));
+        timeRow.addView(totalTime, new LinearLayout.LayoutParams(dp(44), dp(32)));
 
         playerScreen.addView(timeRow, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout controls = new LinearLayout(this);
         controls.setGravity(Gravity.CENTER);
-        controls.setPadding(0, dp(22), 0, dp(12));
+        controls.setPadding(0, dp(24), 0, dp(10));
 
         ImageButton previous = iconButton(android.R.drawable.ic_media_previous);
+        previous.setBackground(roundedBackground(Color.argb(24, 255, 255, 255), 24));
+        previous.setPadding(dp(18), dp(18), dp(18), dp(18));
         previous.setOnClickListener(v -> {
             if (controller != null) {
                 controller.seekToPreviousMediaItem();
@@ -398,36 +426,43 @@ public class PlayerActivity extends Activity {
         });
 
         playButton = iconButton(android.R.drawable.ic_media_play);
-        playButton.setBackground(roundedBackground(Color.rgb(190, 169, 255), 50));
+        playButton.setBackground(roundedBackground(Color.WHITE, 30));
         playButton.setColorFilter(Color.rgb(18, 17, 23));
-        playButton.setPadding(dp(18), dp(18), dp(18), dp(18));
+        playButton.setPadding(dp(22), dp(22), dp(22), dp(22));
         playButton.setOnClickListener(v -> togglePlayback());
 
         ImageButton next = iconButton(android.R.drawable.ic_media_next);
+        next.setBackground(roundedBackground(Color.argb(24, 255, 255, 255), 24));
+        next.setPadding(dp(18), dp(18), dp(18), dp(18));
         next.setOnClickListener(v -> {
             if (controller != null) {
                 controller.seekToNextMediaItem();
             }
         });
 
-        controls.addView(previous, new LinearLayout.LayoutParams(dp(64), dp(64)));
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(82), dp(82));
-        playParams.setMargins(dp(12), 0, dp(12), 0);
+        controls.addView(previous, new LinearLayout.LayoutParams(dp(68), dp(68)));
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(90), dp(90));
+        playParams.setMargins(dp(16), 0, dp(16), 0);
         controls.addView(playButton, playParams);
-        controls.addView(next, new LinearLayout.LayoutParams(dp(64), dp(64)));
+        controls.addView(next, new LinearLayout.LayoutParams(dp(68), dp(68)));
 
-        playerScreen.addView(controls, new LinearLayout.LayoutParams(-1, dp(96)));
+        playerScreen.addView(controls, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout volumeRow = new LinearLayout(this);
         volumeRow.setGravity(Gravity.CENTER_VERTICAL);
-        volumeRow.setPadding(0, dp(4), 0, dp(8));
+        volumeRow.setPadding(dp(4), dp(18), dp(4), dp(8));
 
-        TextView low = labelText("−", 18, Color.rgb(155, 155, 165));
-        TextView high = labelText("+", 18, Color.rgb(155, 155, 165));
+        TextView low = labelText("−", 18, Color.argb(200, 255, 255, 255));
+        low.setGravity(Gravity.CENTER);
+        TextView high = labelText("+", 18, Color.argb(200, 255, 255, 255));
+        high.setGravity(Gravity.CENTER);
 
         volume = new SeekBar(this);
         volume.setMax(100);
         volume.setProgress(100);
+        volume.setPadding(0, 0, 0, 0);
+        volume.setThumbOffset(dp(6));
+        volume.setBackground(null);
         volume.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
@@ -451,28 +486,37 @@ public class PlayerActivity extends Activity {
 
         playerScreen.addView(volumeRow, new LinearLayout.LayoutParams(-1, -2));
 
-        LinearLayout glassPanel = new LinearLayout(this);
-        glassPanel.setGravity(Gravity.CENTER);
-        glassPanel.setPadding(dp(6), dp(4), dp(6), dp(4));
-        glassPanel.setBackground(roundedBackground(Color.argb(68, 255, 255, 255), 22));
+        LinearLayout utilityBar = new LinearLayout(this);
+        utilityBar.setGravity(Gravity.CENTER);
+        utilityBar.setPadding(dp(6), dp(18), dp(6), 0);
 
         TextView lyrics = actionText("LYRICS");
-        TextView queue = actionText("QUEUE");
-        TextView moreAction = actionText("MORE");
-
+        lyrics.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
+        lyrics.setGravity(Gravity.CENTER);
+        lyrics.setPadding(dp(12), dp(12), dp(12), dp(12));
         lyrics.setOnClickListener(v -> showLyrics());
+
+        TextView queue = actionText("QUEUE");
+        queue.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
+        queue.setGravity(Gravity.CENTER);
+        queue.setPadding(dp(12), dp(12), dp(12), dp(12));
         queue.setOnClickListener(v -> showQueue());
+
+        TextView moreAction = actionText("MORE");
+        moreAction.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
+        moreAction.setGravity(Gravity.CENTER);
+        moreAction.setPadding(dp(12), dp(12), dp(12), dp(12));
         moreAction.setOnClickListener(v -> showPlayerOptions());
 
-        glassPanel.addView(lyrics, actionParams());
-        glassPanel.addView(queue, actionParams());
-        glassPanel.addView(moreAction, actionParams());
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, -2, 1);
+        actionParams.setMargins(dp(8), 0, dp(8), 0);
+        utilityBar.addView(lyrics, actionParams);
+        utilityBar.addView(queue, actionParams);
+        utilityBar.addView(moreAction, actionParams);
 
-        LinearLayout.LayoutParams glassParams = new LinearLayout.LayoutParams(-1, dp(54));
-        glassParams.topMargin = dp(14);
-        playerScreen.addView(glassPanel, glassParams);
+        playerScreen.addView(utilityBar, new LinearLayout.LayoutParams(-1, -2));
 
-        content.addView(playerScreen, new LinearLayout.LayoutParams(-1, -1));
+        content.addView(playerScreen, new LinearLayout.LayoutParams(-1, 0, 1));
 
         modeOverlay = new FrameLayout(this);
         modeOverlay.setBackgroundColor(Color.argb(245, 8, 8, 11));
@@ -902,62 +946,62 @@ public class PlayerActivity extends Activity {
             return;
         }
 
-        int rr =
-                Math.min(
-                        95,
-                        (int) (
-                                r /
-                                        count *
-                                        0.55f
-                        )
-                );
+        int avgR = (int) (r / count);
+        int avgG = (int) (g / count);
+        int avgB = (int) (b / count);
 
-        int gg =
-                Math.min(
-                        95,
-                        (int) (
-                                g /
-                                        count *
-                                        0.55f
-                        )
-                );
+        int accent = Color.rgb(
+                clamp(avgR + 30, 0, 255),
+                clamp(avgG + 12, 0, 255),
+                clamp(avgB + 16, 0, 255)
+        );
 
-        int bb =
-                Math.min(
-                        110,
-                        (int) (
-                                b /
-                                        count *
-                                        0.65f
-                        )
-                );
+        int deep = Color.rgb(
+                clamp(avgR / 3, 0, 64),
+                clamp(avgG / 3, 0, 64),
+                clamp(avgB / 3, 0, 72)
+        );
+
+        if (playButton != null) {
+            playButton.setBackground(
+                    roundedBackground(
+                            Color.argb(235, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                            30
+                    )
+            );
+            playButton.setColorFilter(Color.rgb(18, 17, 23));
+        }
 
         darkOverlay.setBackground(
                 new GradientDrawable(
-                        GradientDrawable
-                                .Orientation.TOP_BOTTOM,
+                        GradientDrawable.Orientation.TOP_BOTTOM,
                         new int[]{
-                                Color.argb(
-                                        100,
-                                        rr,
-                                        gg,
-                                        bb
-                                ),
-                                Color.argb(
-                                        218,
-                                        7,
-                                        7,
-                                        10
-                                ),
-                                Color.argb(
-                                        250,
-                                        7,
-                                        7,
-                                        10
-                                )
+                                Color.argb(120, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                                Color.argb(220, 10, 10, 18),
+                                Color.argb(245, 6, 6, 12)
                         }
                 )
         );
+
+        if (volume != null) {
+            volume.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
+            if (Build.VERSION.SDK_INT >= 21) {
+                volume.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));
+            }
+        }
+
+        if (progress != null) {
+            if (Build.VERSION.SDK_INT >= 21) {
+                progress.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
+                progress.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));
+            }
+        }
+
+        if (root != null) {
+            root.setBackgroundColor(
+                    Color.argb(255, Math.min(14, Color.red(deep)), Math.min(14, Color.green(deep)), Math.min(20, Color.blue(deep)))
+            );
+        }
     }
 
     private void resetBackgroundTint() {
@@ -988,6 +1032,14 @@ public class PlayerActivity extends Activity {
                         }
                 )
         );
+
+        if (root != null) {
+            root.setBackgroundColor(Color.rgb(8, 8, 11));
+        }
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private void updateQualityBadge(
