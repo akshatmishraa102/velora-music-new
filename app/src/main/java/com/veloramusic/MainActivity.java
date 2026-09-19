@@ -216,11 +216,12 @@ public class MainActivity extends Activity {
 
         LinearLayout bar = (LinearLayout) navigationView;
         for (int i = 0; i < bar.getChildCount(); i++) {
-            View child = bar.getChildAt(i);
-            if (!(child instanceof LinearLayout)) {
+            View childView = bar.getChildAt(i);
+            if (!(childView instanceof LinearLayout)) {
                 continue;
             }
 
+            LinearLayout child = (LinearLayout) childView;
             boolean selected = i == selectedTabIndex;
             child.setBackground(selected ? round(accent, 18) : null);
 
