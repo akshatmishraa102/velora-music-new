@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -12,10 +13,14 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -32,10 +37,14 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
     private static final int AUDIO_PERMISSION = 20;
+    private static final String PREF_NAME = "velora_ui";
+    private static final String KEY_ACCENT = "accent";
+    private static final String KEY_THEME = "theme";
 
     private final List<Song> songs = new ArrayList<>();
 
@@ -44,6 +53,10 @@ public class MainActivity extends Activity {
     private TextView nowArtist;
     private Button playButton;
     private LinearLayout content;
+    private SharedPreferences preferences;
+    private String currentTheme = "dark";
+    private int searchResultsIndex = 0;
+    private int libraryResultsIndex = 0;
 
     private int accent = Color.rgb(184, 167, 255);
 
@@ -61,10 +74,76 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
+        preferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        loadPreferences();
         loadDimensions();
         buildUi();
         requestAudioPermission();
         connectController();
+    }
+
+    private void loadPreferences() {
+        accent = preferences.getInt(KEY_ACCENT, accent);
+        currentTheme = preferences.getString(KEY_THEME, currentTheme);
+    }
+
+    private void savePreferences() {
+        if (preferences == null) {
+            preferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        }
+        preferences.edit().putInt(KEY_ACCENT, accent).putString(KEY_THEME, currentTheme).apply();
+    }
+
+    private int resolveBackgroundColor() {
+        switch (currentTheme) {
+            case "amoled":
+                return Color.rgb(0, 0, 0);
+            case "light":
+                return Color.rgb(245, 245, 250);
+            case "auto":
+                return Color.rgb(10, 11, 15);
+            case "dark":
+            default:
+                return Color.rgb(9, 10, 14);
+        }
+    }
+
+    private int resolveSurfaceColor() {
+        switch (currentTheme) {
+            case "amoled":
+                return Color.rgb(13, 13, 15);
+            case "light":
+                return Color.rgb(255, 255, 255);
+            case "auto":
+                return Color.rgb(17, 18, 23);
+            case "dark":
+            default:
+                return Color.rgb(18, 18, 25);
+        }
+    }
+
+    private int resolveMutedColor() {
+        switch (currentTheme) {
+            case "light":
+                return Color.rgb(102, 108, 126);
+            case "amoled":
+            case "auto":
+            case "dark":
+            default:
+                return Color.rgb(157, 161, 176);
+        }
+    }
+
+    private int resolvePrimaryTextColor() {
+        return currentTheme.equals("light") ? Color.rgb(17, 21, 30) : Color.rgb(245, 245, 247);
+    }
+
+    private int resolveSecondaryTextColor() {
+        return currentTheme.equals("light") ? Color.rgb(90, 97, 114) : Color.rgb(172, 176, 186);
+    }
+
+    private int resolveCardStrokeColor() {
+        return currentTheme.equals("light") ? Color.argb(35, 26, 31, 44) : Color.argb(30, 255, 255, 255);
     }
 
     private void loadDimensions() {
@@ -99,66 +178,51 @@ public class MainActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(11, 11, 15));
+        root.setBackgroundColor(resolveBackgroundColor());
 
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(Color.TRANSPARENT);
         content.setPadding(
                 getResources().getDimensionPixelSize(
                         R.dimen.velora_screen_horizontal),
-                22,
+                dp(22),
                 getResources().getDimensionPixelSize(
                         R.dimen.velora_screen_horizontal),
-                28
+                dp(28)
         );
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setBackgroundColor(Color.TRANSPARENT);
         scroll.addView(content);
 
-        root.addView(
-                scroll,
-                new LinearLayout.LayoutParams(
-                        -1,
-                        0,
-                        1f
-                )
-        );
-
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         root.addView(buildMiniPlayer());
         root.addView(buildNavigation());
 
         setContentView(root);
-
         showHome();
     }
 
     private View buildNavigation() {
         LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER);
-        bar.setPadding(8, 4, 8, 4);
-        bar.setBackgroundColor(Color.rgb(18, 18, 23));
+        bar.setPadding(dp(12), dp(8), dp(12), dp(10));
+        bar.setBackgroundColor(resolveSurfaceColor());
 
-        String[] labels = {
-                "HOME",
-                "SEARCH",
-                "LIBRARY",
-                "CUSTOM"
-        };
+        String[] labels = {"HOME", "SEARCH", "LIBRARY", "CUSTOM"};
 
         for (int i = 0; i < labels.length; i++) {
             final int index = i;
-
             TextView item = new TextView(this);
             item.setText(labels[i]);
-            item.setTextColor(
-                    index == 0 ? accent : Color.rgb(160, 160, 168)
-            );
+            item.setTextColor(index == 0 ? accent : resolveMutedColor());
             item.setTextSize(11);
             item.setGravity(Gravity.CENTER);
             item.setTypeface(null, Typeface.BOLD);
-            item.setPadding(0, 12, 0, 12);
-
+            item.setPadding(0, dp(12), 0, dp(12));
             item.setOnClickListener(v -> {
                 if (index == 0) showHome();
                 if (index == 1) showSearch();
@@ -166,14 +230,7 @@ public class MainActivity extends Activity {
                 if (index == 3) showCustomise();
             });
 
-            bar.addView(
-                    item,
-                    new LinearLayout.LayoutParams(
-                            0,
-                            56,
-                            1f
-                    )
-            );
+            bar.addView(item, new LinearLayout.LayoutParams(0, -2, 1f));
         }
 
         return bar;
@@ -181,85 +238,64 @@ public class MainActivity extends Activity {
 
     private View buildMiniPlayer() {
         LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(12, 8, 12, 8);
-        bar.setBackgroundColor(Color.rgb(22, 22, 28));
+        bar.setPadding(dp(12), dp(10), dp(10), dp(10));
+        bar.setBackground(round(Color.argb(26, 255, 255, 255), 26));
+        bar.setOnClickListener(v -> startActivity(new Intent(this, PlayerActivity.class)));
 
-        bar.setOnClickListener(v ->
-        startActivity(new Intent(this, PlayerActivity.class)));
-        TextView art = new TextView(this);
-        art.setText("♫");
-        art.setTextSize(22);
-        art.setTextColor(Color.WHITE);
-        art.setGravity(Gravity.CENTER);
-        art.setBackground(round(accent, 8));
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        art.setBackground(round(accent, 14));
+        art.setImageResource(android.R.drawable.ic_media_play);
+        art.setColorFilter(Color.WHITE);
+        art.setPadding(dp(8), dp(8), dp(8), dp(8));
 
-        int miniArtwork = getResources().getDimensionPixelSize(
-                R.dimen.velora_mini_player_artwork
-        );
-
-        bar.addView(
-                art,
-                new LinearLayout.LayoutParams(
-                        miniArtwork,
-                        miniArtwork
-                )
-        );
+        LinearLayout.LayoutParams artParams = new LinearLayout.LayoutParams(dp(52), dp(52));
+        artParams.setMargins(0, 0, dp(12), 0);
+        bar.addView(art, artParams);
 
         LinearLayout textBox = new LinearLayout(this);
         textBox.setOrientation(LinearLayout.VERTICAL);
-        textBox.setPadding(12, 0, 8, 0);
+        textBox.setPadding(0, 0, dp(8), 0);
 
-        nowTitle = textView(
-                "Nothing playing",
-                Color.rgb(245, 245, 247),
-                15
-        );
-
-        nowArtist = textView(
-                "Velora Music",
-                Color.rgb(150, 150, 158),
-                12
-        );
-
+        nowTitle = textView("Nothing playing", resolvePrimaryTextColor(), 15f);
         nowTitle.setSingleLine(true);
+        nowTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nowTitle.setTypeface(null, Typeface.BOLD);
+
+        nowArtist = textView("Velora Music", resolveSecondaryTextColor(), 12f);
         nowArtist.setSingleLine(true);
+        nowArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         textBox.addView(nowTitle);
         textBox.addView(nowArtist);
-
-        bar.addView(
-                textBox,
-                new LinearLayout.LayoutParams(
-                        0,
-                        -2,
-                        1f
-                )
-        );
+        bar.addView(textBox, new LinearLayout.LayoutParams(0, -2, 1f));
 
         playButton = new Button(this);
         playButton.setText("▶");
-        playButton.setTextColor(Color.WHITE);
-        playButton.setTextSize(18);
-        playButton.setBackgroundColor(Color.TRANSPARENT);
+        playButton.setTextColor(resolveBackgroundColor() == Color.rgb(245, 245, 250) ? Color.BLACK : Color.WHITE);
+        playButton.setTextSize(16);
+        playButton.setBackground(round(accent, 999));
         playButton.setOnClickListener(v -> togglePlayback());
 
-        bar.addView(
-                playButton,
-                new LinearLayout.LayoutParams(
-                        54,
-                        54
-                )
-        );
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(42), dp(42));
+        playParams.setMargins(0, 0, dp(8), 0);
+        bar.addView(playButton, playParams);
+
+        ImageButton queueButton = new ImageButton(this);
+        queueButton.setImageResource(android.R.drawable.ic_menu_sort_by_size);
+        queueButton.setBackground(round(Color.argb(18, 255, 255, 255), 999));
+        queueButton.setColorFilter(resolvePrimaryTextColor());
+        queueButton.setPadding(dp(8), dp(8), dp(8), dp(8));
+        queueButton.setOnClickListener(v -> showQueue());
+
+        bar.addView(queueButton, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
         return bar;
     }
 
-    private TextView textView(
-            String text,
-            int color,
-            float size
-    ) {
+    private TextView textView(String text, int color, float size) {
         TextView v = new TextView(this);
         v.setText(text);
         v.setTextColor(color);
@@ -269,130 +305,33 @@ public class MainActivity extends Activity {
 
     private void clearContent() {
         content.removeAllViews();
-
         content.setPadding(
-                getResources().getDimensionPixelSize(
-                        R.dimen.velora_screen_horizontal),
-                22,
-                getResources().getDimensionPixelSize(
-                        R.dimen.velora_screen_horizontal),
-                28
+                getResources().getDimensionPixelSize(R.dimen.velora_screen_horizontal),
+                dp(22),
+                getResources().getDimensionPixelSize(R.dimen.velora_screen_horizontal),
+                dp(28)
         );
     }
 
-    private TextView heading(
-            String text,
-            String subtitle
-    ) {
-        TextView h = textView(
-                text,
-                Color.rgb(245, 245, 247),
-                30
-        );
-
+    private TextView heading(String text, String subtitle) {
+        TextView h = textView(text, resolvePrimaryTextColor(), 30f);
         h.setTypeface(null, Typeface.BOLD);
-        h.setPadding(0, 0, 0, 5);
-
+        h.setPadding(0, dp(4), 0, dp(6));
         content.addView(h);
 
         if (subtitle != null && !subtitle.isEmpty()) {
-            TextView sub = textView(
-                    subtitle,
-                    Color.rgb(145, 145, 153),
-                    13
-            );
-
-            content.addView(
-                    sub,
-                    new LinearLayout.LayoutParams(
-                            -1,
-                            -2
-                    )
-            );
+            TextView sub = textView(subtitle, resolveSecondaryTextColor(), 13f);
+            sub.setPadding(0, 0, 0, dp(14));
+            content.addView(sub, new LinearLayout.LayoutParams(-1, -2));
         }
 
         return h;
     }
 
-    private void showHome() {
-        clearContent();
-
-        heading(
-                "VELORA",
-                "Your music, beautifully organized."
-        );
-
-        addSectionTitle("Listen Now");
-
-        content.addView(
-                featuredCard(),
-                new LinearLayout.LayoutParams(
-                        -1,
-                        featuredHeight
-                )
-        );
-
-        addSectionTitle("Recently Played");
-
-        if (songs.isEmpty()) {
-            content.addView(
-                    emptyCard(
-                            "Your recently played music will appear here."
-                    )
-            );
-        } else {
-            LinearLayout list = new LinearLayout(this);
-            list.setOrientation(LinearLayout.VERTICAL);
-
-            int count = Math.min(5, songs.size());
-
-            for (int i = 0; i < count; i++) {
-                list.addView(
-                        songRow(songs.get(i)),
-                        new LinearLayout.LayoutParams(
-                                -1,
-                                compactHeight
-                        )
-                );
-            }
-
-            content.addView(list);
-        }
-
-        addSectionTitle("Your Library");
-
-        Button library = new Button(this);
-        library.setText("Open Library");
-        library.setTextColor(Color.WHITE);
-        library.setOnClickListener(v -> showLibrary());
-
-        content.addView(library);
-    }
-
     private void addSectionTitle(String title) {
-        TextView section = textView(
-                title,
-                Color.rgb(245, 245, 247),
-                20
-        );
-
+        TextView section = textView(title, resolvePrimaryTextColor(), 20f);
         section.setTypeface(null, Typeface.BOLD);
-
-        int topGap = getResources().getDimensionPixelSize(
-                R.dimen.velora_section_gap
-        );
-
-        int bottomGap = getResources().getDimensionPixelSize(
-                R.dimen.velora_section_content_gap
-        );
-
-        section.setPadding(
-                0,
-                topGap,
-                0,
-                bottomGap
-        );
-
+        section.setPadding(0, dp(22), 0, dp(12));
         content.addView(section);
     }
 
@@ -400,54 +339,28 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.BOTTOM);
-        card.setPadding(
-                featuredPadding,
-                featuredPadding,
-                featuredPadding,
-                featuredPadding
-        );
+        card.setPadding(dp(18), dp(18), dp(18), dp(18));
 
         GradientDrawable background = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{
-                        Color.rgb(48, 44, 63),
-                        Color.rgb(20, 20, 26)
-                }
+                new int[]{accent, Color.rgb(17, 17, 22)}
         );
-
-        background.setCornerRadius(
-                getResources().getDimension(
-                        R.dimen.velora_card_featured_radius
-                )
-        );
-
+        background.setCornerRadius(dp(28));
         card.setBackground(background);
 
-        TextView eyebrow = textView(
-                "MADE FOR YOU",
-                Color.rgb(205, 205, 213),
-                11
-        );
-
+        TextView eyebrow = textView("PERSONAL MIX", Color.argb(210, 255, 255, 255), 10f);
         eyebrow.setTypeface(null, Typeface.BOLD);
 
-        TextView title = textView(
-                songs.isEmpty()
-                        ? "Start listening"
-                        : "Your music mix",
-                Color.WHITE,
-                22
-        );
+        String primaryTitle = songs.isEmpty() ? "Start listening" : "Your evening mix";
+        String primarySubtitle = songs.isEmpty()
+                ? "Build your home with your own library."
+                : "A hand-picked mix from your music library.";
 
+        TextView title = textView(primaryTitle, Color.WHITE, 24f);
         title.setTypeface(null, Typeface.BOLD);
 
-        TextView subtitle = textView(
-                songs.isEmpty()
-                        ? "Add music to build your personal space."
-                        : "A selection from your music library.",
-                Color.rgb(205, 205, 213),
-                13
-        );
+        TextView subtitle = textView(primarySubtitle, Color.argb(205, 255, 255, 255), 13f);
+        subtitle.setPadding(0, dp(4), 0, 0);
 
         LinearLayout bottom = new LinearLayout(this);
         bottom.setGravity(Gravity.CENTER_VERTICAL);
@@ -455,26 +368,17 @@ public class MainActivity extends Activity {
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-
         labels.addView(eyebrow);
         labels.addView(title);
         labels.addView(subtitle);
 
-        bottom.addView(
-                labels,
-                new LinearLayout.LayoutParams(
-                        0,
-                        -2,
-                        1f
-                )
-        );
+        bottom.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
 
         Button play = new Button(this);
         play.setText("▶");
         play.setTextColor(Color.WHITE);
         play.setTextSize(18);
-        play.setBackground(round(accent, 999));
-
+        play.setBackground(round(Color.argb(180, 255, 255, 255), 999));
         play.setOnClickListener(v -> {
             if (!songs.isEmpty()) {
                 playSong(songs.get(0));
@@ -483,212 +387,476 @@ public class MainActivity extends Activity {
             }
         });
 
-        bottom.addView(
-                play,
-                new LinearLayout.LayoutParams(
-                        featuredPlayButton,
-                        featuredPlayButton
-                )
-        );
-
+        bottom.addView(play, new LinearLayout.LayoutParams(dp(52), dp(52)));
         card.addView(bottom);
-
         return card;
     }
 
     private View emptyCard(String message) {
-        TextView empty = textView(
-                message,
-                Color.rgb(150, 150, 158),
-                13
-        );
-
-        empty.setPadding(
-                14,
-                14,
-                14,
-                14
-        );
-
-        empty.setBackground(
-                round(Color.rgb(22, 22, 28), 16)
-        );
-
+        TextView empty = textView(message, resolveSecondaryTextColor(), 13f);
+        empty.setPadding(dp(16), dp(16), dp(16), dp(16));
+        empty.setBackground(round(resolveSurfaceColor(), 16));
         return empty;
+    }
+
+    private void showHome() {
+        clearContent();
+
+        String greeting = "Good evening";
+        int hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
+        if (hour < 12) {
+            greeting = "Good morning";
+        } else if (hour >= 18) {
+            greeting = "Good evening";
+        } else {
+            greeting = "Good afternoon";
+        }
+
+        TextView welcome = textView(greeting, resolveSecondaryTextColor(), 13f);
+        welcome.setTypeface(null, Typeface.BOLD);
+        welcome.setPadding(0, dp(4), 0, 0);
+        content.addView(welcome);
+
+        TextView title = textView("VELORA", resolvePrimaryTextColor(), 30f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, dp(8));
+        content.addView(title);
+
+        addSectionTitle("Featured");
+        content.addView(featuredCard(), new LinearLayout.LayoutParams(-1, dp(200)));
+
+        addSectionTitle("Recently played");
+        if (songs.isEmpty()) {
+            content.addView(emptyCard("Your recently played music will appear here."));
+        } else {
+            HorizontalScrollView scroll = new HorizontalScrollView(this);
+            scroll.setHorizontalScrollBarEnabled(false);
+            scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(0, 0, 0, dp(8));
+
+            for (int i = 0; i < Math.min(7, songs.size()); i++) {
+                row.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+            }
+
+            scroll.addView(row);
+            content.addView(scroll, new LinearLayout.LayoutParams(-1, -2));
+        }
+
+        addSectionTitle("Quick picks");
+        HorizontalScrollView quickScroll = new HorizontalScrollView(this);
+        quickScroll.setHorizontalScrollBarEnabled(false);
+        quickScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        LinearLayout quickRow = new LinearLayout(this);
+        quickRow.setOrientation(LinearLayout.HORIZONTAL);
+        quickRow.setPadding(0, 0, 0, dp(8));
+
+        if (songs.isEmpty()) {
+            quickRow.addView(emptyCard("Add tracks to build your quick mix."), new LinearLayout.LayoutParams(-1, -2));
+        } else {
+            for (int i = 0; i < Math.min(5, songs.size()); i++) {
+                quickRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+            }
+        }
+
+        quickScroll.addView(quickRow);
+        content.addView(quickScroll, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private View buildMediaCard(Song song, boolean strongAccent) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(10), dp(10), dp(10), dp(10));
+        card.setBackground(round(resolveSurfaceColor(), 20));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(170), -2);
+        params.setMargins(0, 0, dp(12), 0);
+        card.setLayoutParams(params);
+
+        TextView art = textView("♫", Color.WHITE, 24f);
+        art.setGravity(Gravity.CENTER);
+        art.setBackground(round(strongAccent ? accent : Color.argb(160, 255, 255, 255), 18));
+        art.setPadding(dp(10), dp(10), dp(10), dp(10));
+        art.setLayoutParams(new LinearLayout.LayoutParams(dp(150), dp(150)));
+
+        TextView title = textView(song.title, resolvePrimaryTextColor(), 14f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        TextView artist = textView(song.artist, resolveSecondaryTextColor(), 12f);
+        artist.setSingleLine(true);
+        artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        card.addView(art);
+        card.addView(title);
+        card.addView(artist);
+        card.setOnClickListener(v -> playSong(song));
+        return card;
     }
 
     private void showSearch() {
         clearContent();
+        heading("Search", "Find music in your library.");
 
-        heading(
-                "Search",
-                "Find music in your library."
-        );
+        LinearLayout searchWrap = new LinearLayout(this);
+        searchWrap.setOrientation(LinearLayout.HORIZONTAL);
+        searchWrap.setBackground(round(resolveSurfaceColor(), 18));
+        searchWrap.setPadding(dp(12), dp(4), dp(8), dp(4));
 
-        EditText search = new EditText(this);
+        final EditText search = new EditText(this);
         search.setHint("Song, artist, album...");
         search.setSingleLine(true);
-        search.setTextColor(Color.WHITE);
-        search.setHintTextColor(Color.rgb(130, 130, 138));
-        search.setPadding(16, 0, 16, 0);
-        search.setBackground(
-                round(Color.rgb(24, 24, 30), 16)
-        );
+        search.setTextColor(resolvePrimaryTextColor());
+        search.setHintTextColor(resolveSecondaryTextColor());
+        search.setBackgroundColor(Color.TRANSPARENT);
+        search.setPadding(dp(10), dp(8), dp(10), dp(8));
 
-        content.addView(
-                search,
-                new LinearLayout.LayoutParams(
-                        -1,
-                        54
-                )
-        );
+        Button clear = new Button(this);
+        clear.setText("Clear");
+        clear.setTextColor(accent);
+        clear.setBackgroundColor(Color.TRANSPARENT);
+        clear.setOnClickListener(v -> search.setText(""));
 
-        Button add = new Button(this);
-        add.setText("+ Add licensed stream URL");
-        add.setTextColor(Color.WHITE);
-        add.setOnClickListener(v -> addStream());
+        searchWrap.addView(search, new LinearLayout.LayoutParams(0, -2, 1f));
+        searchWrap.addView(clear, new LinearLayout.LayoutParams(-2, -2));
+        content.addView(searchWrap, new LinearLayout.LayoutParams(-1, -2));
 
-        content.addView(add);
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        chips.setPadding(0, dp(12), 0, dp(12));
+        String[] chipLabels = {"All", "Songs", "Albums", "Artists", "Playlists"};
+        for (final String chip : chipLabels) {
+            TextView item = textView(chip, resolvePrimaryTextColor(), 12f);
+            item.setBackground(round(resolveSurfaceColor(), 999));
+            item.setPadding(dp(14), dp(8), dp(14), dp(8));
+            item.setOnClickListener(v -> search.setText(chip.equals("All") ? "" : chip));
+            chips.addView(item, new LinearLayout.LayoutParams(-2, -2));
+        }
+        content.addView(chips);
 
-        search.setOnEditorActionListener(
-                (v, actionId, event) -> {
-                    renderSearch(
-                            search.getText().toString()
-                    );
-                    return true;
-                }
-        );
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                renderSearch(s.toString());
+            }
+        });
 
-        addSectionTitle("Results");
+        searchResultsIndex = content.getChildCount();
+        renderSearch("");
+    }
 
-        renderSongs("All");
+    private void renderSearch(String query) {
+        while (content.getChildCount() > searchResultsIndex) {
+            content.removeViewAt(content.getChildCount() - 1);
+        }
+
+        String lower = query == null ? "" : query.toLowerCase(Locale.US);
+        List<Song> matches = new ArrayList<>();
+        for (Song song : songs) {
+            if (query == null || query.isEmpty() || song.title.toLowerCase(Locale.US).contains(lower) || song.artist.toLowerCase(Locale.US).contains(lower)) {
+                matches.add(song);
+            }
+        }
+
+        if (matches.isEmpty()) {
+            TextView empty = textView("No matches found in your library.", resolveSecondaryTextColor(), 13f);
+            empty.setPadding(dp(8), dp(12), 0, dp(12));
+            content.addView(empty);
+            return;
+        }
+
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        for (Song song : matches) {
+            section.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
+        }
+        content.addView(section);
     }
 
     private void showLibrary() {
         clearContent();
 
-        heading(
-                "Library",
-                "Local + licensed online music."
-        );
+        heading("Library", "Local + licensed online music.");
+
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setPadding(0, dp(6), 0, dp(12));
+
+        String[] tabs = {"Songs", "Albums", "Artists", "Playlists"};
+        for (String tab : tabs) {
+            TextView item = textView(tab, resolvePrimaryTextColor(), 12f);
+            item.setBackground(round(resolveSurfaceColor(), 999));
+            item.setPadding(dp(14), dp(10), dp(14), dp(10));
+            item.setOnClickListener(v -> renderLibrary(tab));
+            toolbar.addView(item, new LinearLayout.LayoutParams(-2, -2));
+        }
+
+        content.addView(toolbar);
 
         Button refresh = new Button(this);
         refresh.setText("Rescan local music");
         refresh.setTextColor(Color.WHITE);
-
+        refresh.setBackground(round(accent, 16));
         refresh.setOnClickListener(v -> {
             loadLocalSongs();
-            showLibrary();
+            renderLibrary("Songs");
         });
 
         content.addView(refresh);
+        libraryResultsIndex = content.getChildCount();
+        renderLibrary("Songs");
+    }
 
-        addSectionTitle("Songs");
+    private void renderLibrary(String filter) {
+        while (content.getChildCount() > libraryResultsIndex) {
+            content.removeViewAt(content.getChildCount() - 1);
+        }
 
-        renderSongs("All");
+        if (songs.isEmpty()) {
+            content.addView(emptyCard("No local tracks found yet. Grant music access or add a licensed stream."));
+            return;
+        }
+
+        switch (filter) {
+            case "Albums":
+                LinearLayout albums = new LinearLayout(this);
+                albums.setOrientation(LinearLayout.VERTICAL);
+                for (int i = 0; i < Math.min(8, songs.size()); i++) {
+                    Song song = songs.get(i);
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setPadding(dp(12), dp(8), dp(12), dp(8));
+                    row.setBackground(round(resolveSurfaceColor(), 18));
+                    row.setOnClickListener(v -> playSong(song));
+
+                    TextView art = textView("◉", resolvePrimaryTextColor(), 20f);
+                    art.setBackground(round(accent, 14));
+                    art.setGravity(Gravity.CENTER);
+                    art.setPadding(dp(12), dp(12), dp(12), dp(12));
+                    row.addView(art, new LinearLayout.LayoutParams(dp(42), dp(42)));
+
+                    LinearLayout info = new LinearLayout(this);
+                    info.setOrientation(LinearLayout.VERTICAL);
+                    info.setPadding(dp(12), 0, 0, 0);
+                    TextView title = textView(song.artist + " Collection", resolvePrimaryTextColor(), 15f);
+                    title.setTypeface(null, Typeface.BOLD);
+                    TextView subtitle = textView(song.title, resolveSecondaryTextColor(), 12f);
+                    info.addView(title);
+                    info.addView(subtitle);
+                    row.addView(info, new LinearLayout.LayoutParams(0, -2, 1f));
+                    albums.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                }
+                content.addView(albums);
+                break;
+            case "Artists":
+                LinearLayout artists = new LinearLayout(this);
+                artists.setOrientation(LinearLayout.VERTICAL);
+                for (int i = 0; i < Math.min(8, songs.size()); i++) {
+                    Song song = songs.get(i);
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setPadding(dp(12), dp(8), dp(12), dp(8));
+                    row.setBackground(round(resolveSurfaceColor(), 18));
+                    row.setOnClickListener(v -> playSong(song));
+
+                    TextView art = textView(song.artist.substring(0, 1).toUpperCase(Locale.US), Color.WHITE, 18f);
+                    art.setBackground(round(accent, 14));
+                    art.setGravity(Gravity.CENTER);
+                    art.setPadding(dp(12), dp(12), dp(12), dp(12));
+                    row.addView(art, new LinearLayout.LayoutParams(dp(42), dp(42)));
+
+                    LinearLayout info = new LinearLayout(this);
+                    info.setOrientation(LinearLayout.VERTICAL);
+                    info.setPadding(dp(12), 0, 0, 0);
+                    TextView name = textView(song.artist, resolvePrimaryTextColor(), 15f);
+                    name.setTypeface(null, Typeface.BOLD);
+                    TextView count = textView("1 track in library", resolveSecondaryTextColor(), 12f);
+                    info.addView(name);
+                    info.addView(count);
+                    row.addView(info, new LinearLayout.LayoutParams(0, -2, 1f));
+                    artists.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                }
+                content.addView(artists);
+                break;
+            case "Playlists":
+                LinearLayout playlists = new LinearLayout(this);
+                playlists.setOrientation(LinearLayout.VERTICAL);
+                String[] playlistNames = {"Favorites", "Fresh Finds", "Offline Mix", "Night Drive"};
+                for (int i = 0; i < playlistNames.length; i++) {
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setPadding(dp(12), dp(10), dp(12), dp(10));
+                    row.setBackground(round(resolveSurfaceColor(), 18));
+                    TextView art = textView(String.valueOf(i + 1), Color.WHITE, 18f);
+                    art.setBackground(round(accent, 14));
+                    art.setGravity(Gravity.CENTER);
+                    art.setPadding(dp(12), dp(12), dp(12), dp(12));
+                    row.addView(art, new LinearLayout.LayoutParams(dp(42), dp(42)));
+                    LinearLayout info = new LinearLayout(this);
+                    info.setOrientation(LinearLayout.VERTICAL);
+                    info.setPadding(dp(12), 0, 0, 0);
+                    TextView name = textView(playlistNames[i], resolvePrimaryTextColor(), 15f);
+                    name.setTypeface(null, Typeface.BOLD);
+                    TextView count = textView(Math.min(10, songs.size()) + " tracks", resolveSecondaryTextColor(), 12f);
+                    info.addView(name);
+                    info.addView(count);
+                    row.addView(info, new LinearLayout.LayoutParams(0, -2, 1f));
+                    playlists.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                }
+                content.addView(playlists);
+                break;
+            case "Songs":
+            default:
+                LinearLayout songsList = new LinearLayout(this);
+                songsList.setOrientation(LinearLayout.VERTICAL);
+                for (Song song : songs) {
+                    songsList.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
+                }
+                content.addView(songsList);
+                break;
+        }
     }
 
     private void showCustomise() {
         clearContent();
+        heading("Customise", "Make Velora feel like yours.");
 
-        heading(
-                "Customise",
-                "Make Velora yours."
-        );
+        addSectionTitle("Appearance");
+        LinearLayout themeCard = new LinearLayout(this);
+        themeCard.setOrientation(LinearLayout.VERTICAL);
+        themeCard.setBackground(round(resolveSurfaceColor(), 20));
+        themeCard.setPadding(dp(12), dp(12), dp(12), dp(12));
 
-        addSectionTitle("Accent Theme");
-
-        String[] names = {
-                "Midnight",
-                "Ocean",
-                "Neon",
-                "Sunset",
-                "Rose"
-        };
-
-        int[] colors = {
-                Color.rgb(184, 167, 255),
-                Color.rgb(89, 195, 255),
-                Color.rgb(125, 255, 138),
-                Color.rgb(255, 155, 114),
-                Color.rgb(255, 127, 167)
-        };
-
-        for (int i = 0; i < names.length; i++) {
-            Button b = new Button(this);
-            b.setText(names[i]);
-            b.setTextColor(Color.WHITE);
-
-            final int c = colors[i];
-
-            b.setOnClickListener(v -> {
-                accent = c;
+        String[] modes = {"Dark", "AMOLED", "Light", "Auto"};
+        for (String mode : modes) {
+            TextView option = textView(mode, resolvePrimaryTextColor(), 14f);
+            option.setPadding(dp(10), dp(10), dp(10), dp(10));
+            option.setBackground(round(resolveBackgroundColor(), 12));
+            option.setOnClickListener(v -> {
+                currentTheme = mode.toLowerCase(Locale.US);
+                if (currentTheme.equals("auto")) currentTheme = "dark";
+                savePreferences();
                 buildUi();
                 connectController();
             });
-
-            content.addView(b);
+            themeCard.addView(option, new LinearLayout.LayoutParams(-1, -2));
         }
+        content.addView(themeCard);
 
-        addSectionTitle("Animation");
+        addSectionTitle("Accent");
+        LinearLayout accentWrap = new LinearLayout(this);
+        accentWrap.setOrientation(LinearLayout.HORIZONTAL);
+        accentWrap.setGravity(Gravity.CENTER_VERTICAL);
+        accentWrap.setPadding(0, 0, 0, dp(8));
 
-        SeekBar intensity = new SeekBar(this);
-        intensity.setMax(2);
-        intensity.setProgress(1);
+        int[] colors = {
+                Color.rgb(184, 167, 255),
+                Color.rgb(88, 188, 255),
+                Color.rgb(72, 226, 187),
+                Color.rgb(255, 144, 110),
+                Color.rgb(255, 120, 154)
+        };
 
-        content.addView(intensity);
+        for (int color : colors) {
+            View chip = new View(this);
+            chip.setBackground(round(color, 999));
+            int size = dp(28);
+            LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(size, size);
+            chipParams.setMargins(0, 0, dp(10), 0);
+            chip.setOnClickListener(v -> {
+                accent = color;
+                savePreferences();
+                buildUi();
+                connectController();
+            });
+            accentWrap.addView(chip, chipParams);
+        }
+        content.addView(accentWrap);
 
-        TextView info = textView(
-                "Velora keeps animations lightweight so the interface stays smooth on lower-end Android devices.",
-                Color.rgb(145, 145, 153),
-                13
-        );
+        addSectionTitle("Playback");
+        TextView playback = textView("Modern player interactions, swipe artwork navigation, and quality badges remain active in the main player screen.", resolveSecondaryTextColor(), 13f);
+        playback.setPadding(0, 0, 0, dp(12));
+        content.addView(playback);
 
-        info.setPadding(0, 8, 0, 0);
+        addSectionTitle("About Velora");
+        TextView about = textView("Velora Music is a lightweight Android music player built for local library playback, licensed streams, and premium dark-mode listening.", resolveSecondaryTextColor(), 13f);
+        about.setPadding(0, 0, 0, dp(12));
+        content.addView(about);
 
-        content.addView(info);
+        Button sourceButton = new Button(this);
+        sourceButton.setText("Open-source contribution");
+        sourceButton.setTextColor(Color.WHITE);
+        sourceButton.setBackground(round(accent, 16));
+        sourceButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/"));
+            startActivity(intent);
+        });
+        content.addView(sourceButton);
+
+        Button instaButton = new Button(this);
+        instaButton.setText("Akshat Mishra on Instagram");
+        instaButton.setTextColor(Color.WHITE);
+        instaButton.setBackground(round(resolveSurfaceColor(), 16));
+        instaButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/akshatmishra/"));
+            startActivity(intent);
+        });
+        content.addView(instaButton);
     }
 
     private void renderSearch(String query) {
-        while (content.getChildCount() > 5) {
-            content.removeViewAt(5);
+        if (content == null) {
+            return;
         }
 
-        String lower = query.toLowerCase();
+        while (content.getChildCount() > searchResultsIndex) {
+            content.removeViewAt(content.getChildCount() - 1);
+        }
 
+        String lower = query == null ? "" : query.toLowerCase(Locale.US);
+        List<Song> matches = new ArrayList<>();
         for (Song song : songs) {
-            if (query.isEmpty()
-                    || song.title.toLowerCase().contains(lower)
-                    || song.artist.toLowerCase().contains(lower)) {
-
-                content.addView(
-                        songRow(song),
-                        new LinearLayout.LayoutParams(
-                                -1,
-                                compactHeight
-                        )
-                );
+            if (query == null || query.isEmpty() || song.title.toLowerCase(Locale.US).contains(lower) || song.artist.toLowerCase(Locale.US).contains(lower)) {
+                matches.add(song);
             }
         }
+
+        if (matches.isEmpty()) {
+            TextView empty = textView("No matches found in your library.", resolveSecondaryTextColor(), 13f);
+            empty.setPadding(dp(8), dp(12), 0, dp(12));
+            content.addView(empty);
+            return;
+        }
+
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        for (Song song : matches) {
+            section.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
+        }
+        content.addView(section);
     }
 
     private void renderSongs(String filter) {
-        for (Song song : songs) {
-            content.addView(
-                    songRow(song),
-                    new LinearLayout.LayoutParams(
-                            -1,
-                            compactHeight
-                    )
-            );
+        if (content == null) {
+            return;
+        }
+
+        while (content.getChildCount() > 5) {
+            content.removeViewAt(content.getChildCount() - 1);
         }
 
         if (songs.isEmpty()) {
-            content.addView(
-                    emptyCard(
-                            "No songs found. Grant music permission or add a licensed stream."
-                    )
-            );
+            content.addView(emptyCard("No songs found. Grant music permission or add a licensed stream."));
+            return;
+        }
+
+        for (Song song : songs) {
+            content.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
         }
     }
 
@@ -696,128 +864,55 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(10), dp(12), dp(10));
+        row.setBackground(round(resolveSurfaceColor(), 18));
+        row.setOnClickListener(v -> playSong(song));
 
-        row.setPadding(
-                compactHorizontalPadding,
-                compactVerticalPadding,
-                compactHorizontalPadding,
-                compactVerticalPadding
-        );
-
-        row.setBackground(
-                round(Color.rgb(20, 20, 26), 16)
-        );
-
-        TextView icon = textView(
-                "♫",
-                Color.WHITE,
-                21
-        );
-
+        TextView icon = textView("♫", Color.WHITE, 20f);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(
-                round(accent, 12)
-        );
+        icon.setBackground(round(accent, 12));
+        icon.setPadding(dp(9), dp(9), dp(9), dp(9));
 
-        row.addView(
-                icon,
-                new LinearLayout.LayoutParams(
-                        compactArtwork,
-                        compactArtwork
-                )
-        );
+        row.addView(icon, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
         LinearLayout text = new LinearLayout(this);
         text.setOrientation(LinearLayout.VERTICAL);
         text.setGravity(Gravity.CENTER_VERTICAL);
-        text.setPadding(
-                getResources().getDimensionPixelSize(
-                        R.dimen.velora_artwork_title_gap
-                ),
-                0,
-                8,
-                0
-        );
+        text.setPadding(dp(12), 0, dp(10), 0);
 
-        TextView title = textView(
-                song.title,
-                Color.rgb(245, 245, 247),
-                15
-        );
-
-        title.setTextAppearance(
-                this,
-                R.style.VeloraCardTitle
-        );
-
+        TextView title = textView(song.title, resolvePrimaryTextColor(), 15f);
+        title.setTypeface(null, Typeface.BOLD);
         title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
-        TextView artist = textView(
-                song.artist,
-                Color.rgb(150, 150, 158),
-                12
-        );
-
-        artist.setTextAppearance(
-                this,
-                R.style.VeloraCardArtist
-        );
-
+        TextView artist = textView(song.artist, resolveSecondaryTextColor(), 12f);
         artist.setSingleLine(true);
+        artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         text.addView(title);
         text.addView(artist);
-
-        row.addView(
-                text,
-                new LinearLayout.LayoutParams(
-                        0,
-                        -1,
-                        1f
-                )
-        );
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1f));
 
         Button play = new Button(this);
         play.setText("▶");
         play.setTextColor(Color.WHITE);
         play.setTextSize(14);
         play.setBackgroundColor(Color.TRANSPARENT);
-
-        play.setOnClickListener(
-                v -> playSong(song)
-        );
-
-        row.addView(
-                play,
-                new LinearLayout.LayoutParams(
-                        48,
-                        48
-                )
-        );
-
-        row.setOnClickListener(
-                v -> playSong(song)
-        );
+        play.setOnClickListener(v -> playSong(song));
+        row.addView(play, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
         return row;
     }
 
-    private GradientDrawable round(
-            int color,
-            int radiusDp
-    ) {
-        GradientDrawable drawable =
-                new GradientDrawable();
-
+    private GradientDrawable round(int color, int radiusDp) {
+        GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
-
-        drawable.setCornerRadius(
-                radiusDp * getResources()
-                        .getDisplayMetrics()
-                        .density
-        );
-
+        drawable.setCornerRadius(radiusDp * getResources().getDisplayMetrics().density);
         return drawable;
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private void addStream() {
