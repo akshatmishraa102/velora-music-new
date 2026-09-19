@@ -38,6 +38,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -288,7 +289,7 @@ public class MainActivity extends Activity {
         queueButton.setBackground(round(Color.argb(18, 255, 255, 255), 999));
         queueButton.setColorFilter(resolvePrimaryTextColor());
         queueButton.setPadding(dp(8), dp(8), dp(8), dp(8));
-        queueButton.setOnClickListener(v -> showQueue());
+        queueButton.setOnClickListener(v -> startActivity(new Intent(this, PlayerActivity.class)));
 
         bar.addView(queueButton, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
@@ -545,34 +546,6 @@ public class MainActivity extends Activity {
 
         searchResultsIndex = content.getChildCount();
         renderSearch("");
-    }
-
-    private void renderSearch(String query) {
-        while (content.getChildCount() > searchResultsIndex) {
-            content.removeViewAt(content.getChildCount() - 1);
-        }
-
-        String lower = query == null ? "" : query.toLowerCase(Locale.US);
-        List<Song> matches = new ArrayList<>();
-        for (Song song : songs) {
-            if (query == null || query.isEmpty() || song.title.toLowerCase(Locale.US).contains(lower) || song.artist.toLowerCase(Locale.US).contains(lower)) {
-                matches.add(song);
-            }
-        }
-
-        if (matches.isEmpty()) {
-            TextView empty = textView("No matches found in your library.", resolveSecondaryTextColor(), 13f);
-            empty.setPadding(dp(8), dp(12), 0, dp(12));
-            content.addView(empty);
-            return;
-        }
-
-        LinearLayout section = new LinearLayout(this);
-        section.setOrientation(LinearLayout.VERTICAL);
-        for (Song song : matches) {
-            section.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
-        }
-        content.addView(section);
     }
 
     private void showLibrary() {
