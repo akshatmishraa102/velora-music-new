@@ -97,6 +97,15 @@ public class MainActivity extends Activity {
         preferences.edit().putInt(KEY_ACCENT, accent).putString(KEY_THEME, currentTheme).apply();
     }
 
+    private boolean isSystemNightMode() {
+        android.app.UiModeManager uiModeManager =
+                (android.app.UiModeManager) getSystemService(android.content.Context.UI_MODE_SERVICE);
+        if (uiModeManager == null) {
+            return false;
+        }
+        return uiModeManager.getNightMode() == android.app.UiModeManager.MODE_NIGHT_YES;
+    }
+
     private int resolveBackgroundColor() {
         switch (currentTheme) {
             case "amoled":
@@ -104,7 +113,7 @@ public class MainActivity extends Activity {
             case "light":
                 return Color.rgb(245, 245, 250);
             case "auto":
-                return Color.rgb(10, 11, 15);
+                return isSystemNightMode() ? Color.rgb(9, 10, 14) : Color.rgb(245, 245, 250);
             case "dark":
             default:
                 return Color.rgb(9, 10, 14);
@@ -118,7 +127,7 @@ public class MainActivity extends Activity {
             case "light":
                 return Color.rgb(255, 255, 255);
             case "auto":
-                return Color.rgb(17, 18, 23);
+                return isSystemNightMode() ? Color.rgb(18, 18, 25) : Color.rgb(255, 255, 255);
             case "dark":
             default:
                 return Color.rgb(18, 18, 25);
@@ -130,23 +139,42 @@ public class MainActivity extends Activity {
             case "light":
                 return Color.rgb(102, 108, 126);
             case "amoled":
-            case "auto":
             case "dark":
             default:
                 return Color.rgb(157, 161, 176);
+            case "auto":
+                return isSystemNightMode() ? Color.rgb(157, 161, 176) : Color.rgb(102, 108, 126);
         }
     }
 
     private int resolvePrimaryTextColor() {
-        return currentTheme.equals("light") ? Color.rgb(17, 21, 30) : Color.rgb(245, 245, 247);
+        if (currentTheme.equals("light")) {
+            return Color.rgb(17, 21, 30);
+        }
+        if (currentTheme.equals("auto")) {
+            return isSystemNightMode() ? Color.rgb(245, 245, 247) : Color.rgb(17, 21, 30);
+        }
+        return Color.rgb(245, 245, 247);
     }
 
     private int resolveSecondaryTextColor() {
-        return currentTheme.equals("light") ? Color.rgb(90, 97, 114) : Color.rgb(172, 176, 186);
+        if (currentTheme.equals("light")) {
+            return Color.rgb(90, 97, 114);
+        }
+        if (currentTheme.equals("auto")) {
+            return isSystemNightMode() ? Color.rgb(172, 176, 186) : Color.rgb(90, 97, 114);
+        }
+        return Color.rgb(172, 176, 186);
     }
 
     private int resolveCardStrokeColor() {
-        return currentTheme.equals("light") ? Color.argb(35, 26, 31, 44) : Color.argb(30, 255, 255, 255);
+        if (currentTheme.equals("light")) {
+            return Color.argb(35, 26, 31, 44);
+        }
+        if (currentTheme.equals("auto")) {
+            return isSystemNightMode() ? Color.argb(30, 255, 255, 255) : Color.argb(35, 26, 31, 44);
+        }
+        return Color.argb(30, 255, 255, 255);
     }
 
     private void loadDimensions() {
@@ -821,7 +849,6 @@ public class MainActivity extends Activity {
             option.setBackground(round(resolveBackgroundColor(), 12));
             option.setOnClickListener(v -> {
                 currentTheme = mode.toLowerCase(Locale.US);
-                if (currentTheme.equals("auto")) currentTheme = "dark";
                 savePreferences();
                 buildUi();
                 connectController();
