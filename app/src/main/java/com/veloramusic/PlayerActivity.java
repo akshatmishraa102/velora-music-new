@@ -108,9 +108,18 @@ public class PlayerActivity extends Activity {
         }, command -> handler.post(command));
     }
 
+    private LinearLayout content;
+    private LinearLayout playerScreen;
+    private FrameLayout modeOverlay;
+    private LinearLayout lyricsSheet;
+    private LinearLayout queueSheet;
+    private LinearLayout queueListContainer;
+    private TextView lyricsBody;
+
     private void buildPlayerUi() {
 
         root = new FrameLayout(this);
+        root.setBackgroundColor(Color.rgb(8, 8, 11));
 
         backgroundArtwork = new ImageView(this);
         backgroundArtwork.setScaleType(
@@ -137,7 +146,6 @@ public class PlayerActivity extends Activity {
         );
 
         darkOverlay = new View(this);
-
         darkOverlay.setBackground(
                 new GradientDrawable(
                         GradientDrawable.Orientation.TOP_BOTTOM,
@@ -157,66 +165,39 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        LinearLayout content =
-                new LinearLayout(this);
-
-        content.setOrientation(
-                LinearLayout.VERTICAL
-        );
-
-        content.setGravity(
-                Gravity.CENTER_HORIZONTAL
-        );
-
-        content.setPadding(
-                dp(20),
-                dp(16),
-                dp(20),
-                dp(16)
-        );
-
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(dp(18), dp(12), dp(18), dp(12));
         content.setOnApplyWindowInsetsListener(
                 (v, insets) -> {
-
                     int left;
                     int top;
                     int right;
                     int bottom;
 
                     if (Build.VERSION.SDK_INT >= 30) {
-
                         android.graphics.Insets bars =
                                 insets.getInsets(
                                         android.view.WindowInsets.Type.systemBars()
                                 );
-
                         left = bars.left;
                         top = bars.top;
                         right = bars.right;
                         bottom = bars.bottom;
-
                     } else {
-
-                        left =
-                                insets.getSystemWindowInsetLeft();
-
-                        top =
-                                insets.getSystemWindowInsetTop();
-
-                        right =
-                                insets.getSystemWindowInsetRight();
-
-                        bottom =
-                                insets.getSystemWindowInsetBottom();
+                        left = insets.getSystemWindowInsetLeft();
+                        top = insets.getSystemWindowInsetTop();
+                        right = insets.getSystemWindowInsetRight();
+                        bottom = insets.getSystemWindowInsetBottom();
                     }
 
                     v.setPadding(
-                            dp(20) + left,
-                            dp(16) + top,
-                            dp(20) + right,
-                            dp(16) + bottom
+                            dp(18) + left,
+                            dp(12) + top,
+                            dp(18) + right,
+                            dp(12) + bottom
                     );
-
                     return insets;
                 }
         );
@@ -229,746 +210,511 @@ public class PlayerActivity extends Activity {
                 )
         );
 
-        root.post(
-                () -> root.requestApplyInsets()
-        );
+        root.post(() -> root.requestApplyInsets());
 
-        // TOP BAR
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setPadding(0, dp(4), 0, 0);
 
-        LinearLayout topBar =
-                new LinearLayout(this);
+        ImageButton close = iconButton(android.R.drawable.ic_menu_close_clear_cancel);
+        close.setOnClickListener(v -> finish());
 
-        topBar.setGravity(
-                Gravity.CENTER_VERTICAL
-        );
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.VERTICAL);
+        heading.setGravity(Gravity.CENTER);
+        TextView liveBadge = labelText("NOW PLAYING", 10, Color.rgb(188, 188, 202));
+        TextView brandBadge = labelText("VELORA", 9, Color.rgb(118, 118, 128));
+        heading.addView(liveBadge);
+        heading.addView(brandBadge);
 
-        ImageButton close =
-                iconButton(
-                        android.R.drawable
-                                .ic_menu_close_clear_cancel
-                );
+        ImageButton more = iconButton(android.R.drawable.ic_menu_more);
+        more.setOnClickListener(v -> showPlayerOptions());
 
-        close.setOnClickListener(
-                v -> finish()
-        );
+        topBar.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        topBar.addView(heading, new LinearLayout.LayoutParams(0, dp(52), 1));
+        topBar.addView(more, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
-        topBar.addView(
-                close,
-                new LinearLayout.LayoutParams(
-                        dp(48),
-                        dp(48)
-                )
-        );
+        content.addView(topBar, new LinearLayout.LayoutParams(-1, dp(52)));
 
-        LinearLayout heading =
-                new LinearLayout(this);
-
-        heading.setOrientation(
-                LinearLayout.VERTICAL
-        );
-
-        heading.setGravity(
-                Gravity.CENTER
-        );
-
-        heading.addView(
-                labelText(
-                        "NOW PLAYING",
-                        10,
-                        Color.rgb(
-                                185,
-                                185,
-                                195
-                        )
-                )
-        );
-
-        heading.addView(
-                labelText(
-                        "VELORA",
-                        9,
-                        Color.rgb(
-                                112,
-                                112,
-                                122
-                        )
-                )
-        );
-
-        topBar.addView(
-                heading,
-                new LinearLayout.LayoutParams(
-                        0,
-                        dp(48),
-                        1
-                )
-        );
-
-        ImageButton more =
-                iconButton(
-                        android.R.drawable.ic_menu_more
-                );
-
-        more.setOnClickListener(
-                v -> showPlayerOptions()
-        );
-
-        topBar.addView(
-                more,
-                new LinearLayout.LayoutParams(
-                        dp(48),
-                        dp(48)
-                )
-        );
-
-        content.addView(
-                topBar,
-                new LinearLayout.LayoutParams(
-                        -1,
-                        dp(52)
-                )
-        );
-
-        // ARTWORK
+        playerScreen = new LinearLayout(this);
+        playerScreen.setOrientation(LinearLayout.VERTICAL);
+        playerScreen.setGravity(Gravity.CENTER_HORIZONTAL);
 
         int artworkSize = Math.min(
-                dp(310),
+                dp(320),
                 Math.min(
-                        getResources()
-                                .getDisplayMetrics()
-                                .widthPixels
-                                - dp(40),
-
-                        (int) (
-                                getResources()
-                                        .getDisplayMetrics()
-                                        .heightPixels
-                                        * 0.39f
-                        )
+                        getResources().getDisplayMetrics().widthPixels - dp(42),
+                        (int) (getResources().getDisplayMetrics().heightPixels * 0.42f)
                 )
         );
+
+        FrameLayout artworkWrap = new FrameLayout(this);
+        artworkWrap.setLayoutParams(new LinearLayout.LayoutParams(artworkSize, artworkSize));
+        artworkWrap.setPadding(dp(10), dp(10), dp(10), dp(10));
 
         artwork = new ImageView(this);
-
-        artwork.setScaleType(
-                ImageView.ScaleType.CENTER_CROP
-        );
-
-        artwork.setBackground(
-                roundedBackground(
-                        Color.rgb(
-                                39,
-                                39,
-                                47
-                        ),
-                        24
-                )
-        );
-
+        artwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        artwork.setBackground(roundedBackground(Color.rgb(36, 36, 44), 26));
         artwork.setClipToOutline(true);
         artwork.setOnTouchListener(new View.OnTouchListener() {
-    private float downX;
+            private float downX;
 
-    @Override
-    public boolean onTouch(View v, android.view.MotionEvent event) {
-        switch (event.getAction()) {
-            case android.view.MotionEvent.ACTION_DOWN:
-                downX = event.getX();
-                return true;
+            @Override
+            public boolean onTouch(View v, android.view.MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        downX = event.getX();
+                        return true;
 
-            case android.view.MotionEvent.ACTION_UP:
-                float deltaX = event.getX() - downX;
-
-                if (Math.abs(deltaX) > dp(70) && controller != null) {
-                    if (deltaX < 0) {
-                        controller.seekToNextMediaItem();
-                    } else {
-                        controller.seekToPreviousMediaItem();
-                    }
-
-                    artwork.animate()
-                            .scaleX(0.97f)
-                            .scaleY(0.97f)
-                            .setDuration(80)
-                            .withEndAction(() ->
-                                    artwork.animate()
+                    case android.view.MotionEvent.ACTION_UP:
+                        float deltaX = event.getX() - downX;
+                        if (Math.abs(deltaX) > dp(70) && controller != null) {
+                            if (deltaX < 0) {
+                                controller.seekToNextMediaItem();
+                            } else {
+                                controller.seekToPreviousMediaItem();
+                            }
+                            artwork.animate()
+                                    .scaleX(0.96f)
+                                    .scaleY(0.96f)
+                                    .setDuration(90)
+                                    .withEndAction(() -> artwork.animate()
                                             .scaleX(1f)
                                             .scaleY(1f)
-                                            .setDuration(140)
+                                            .setDuration(150)
                                             .start())
-                            .start();
-
-                    return true;
+                                    .start();
+                            return true;
+                        }
+                        return true;
+                    default:
+                        return false;
                 }
+            }
+        });
 
-                return true;
-        }
+        FrameLayout.LayoutParams artworkParams =
+                new FrameLayout.LayoutParams(artworkSize - dp(20), artworkSize - dp(20));
+        artworkParams.gravity = Gravity.CENTER;
+        artworkWrap.addView(artwork, artworkParams);
 
-        return true;
-    }
-});
+        playerScreen.addView(artworkWrap, new LinearLayout.LayoutParams(artworkSize, artworkSize));
 
-        LinearLayout.LayoutParams artworkParams =
-                new LinearLayout.LayoutParams(
-                        artworkSize,
-                        artworkSize
-                );
+        LinearLayout metaRow = new LinearLayout(this);
+        metaRow.setGravity(Gravity.CENTER_VERTICAL);
+        metaRow.setPadding(0, dp(10), 0, dp(4));
 
-        artworkParams.gravity =
-                Gravity.CENTER_HORIZONTAL;
-
-        artworkParams.topMargin =
-                dp(8);
-
-        artworkParams.bottomMargin =
-                dp(18);
-
-        content.addView(
-                artwork,
-                artworkParams
-        );
-
-        // SONG INFORMATION
-
-        LinearLayout infoRow =
-                new LinearLayout(this);
-
-        infoRow.setGravity(
-                Gravity.CENTER_VERTICAL
-        );
-
-        LinearLayout songInfo =
-                new LinearLayout(this);
-
-        songInfo.setOrientation(
-                LinearLayout.VERTICAL
-        );
+        LinearLayout songInfo = new LinearLayout(this);
+        songInfo.setOrientation(LinearLayout.VERTICAL);
 
         title = new TextView(this);
-
-        title.setText(
-                "Nothing Playing"
-        );
-
-        title.setTextColor(
-                Color.WHITE
-        );
-
-        title.setTextSize(
-                22
-        );
-
-        title.setTypeface(
-                null,
-                android.graphics.Typeface.BOLD
-        );
-
+        title.setText("Nothing Playing");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(24);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
-
-        title.setEllipsize(
-                android.text.TextUtils.TruncateAt.END
-        );
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         artist = new TextView(this);
-
-        artist.setText(
-                "Velora Music"
-        );
-
-        artist.setTextColor(
-                Color.rgb(
-                        165,
-                        165,
-                        175
-                )
-        );
-
-        artist.setTextSize(
-                14
-        );
-
-        artist.setPadding(
-                0,
-                dp(2),
-                0,
-                0
-        );
-
+        artist.setText("Velora Music");
+        artist.setTextColor(Color.rgb(169, 169, 180));
+        artist.setTextSize(14);
+        artist.setPadding(0, dp(2), 0, 0);
         artist.setSingleLine(true);
-
-        artist.setEllipsize(
-                android.text.TextUtils.TruncateAt.END
-        );
-
-
+        artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         songInfo.addView(title);
         songInfo.addView(artist);
 
-    
+        metaRow.addView(songInfo, new LinearLayout.LayoutParams(0, -2, 1));
 
-        infoRow.addView(
-                songInfo,
-                new LinearLayout.LayoutParams(
-                        0,
-                        dp(82),
-                        1
-                )
-        );
+        qualityBadge = labelText("HI-FI", 11, Color.rgb(206, 199, 255));
+        qualityBadge.setBackground(roundedBackground(Color.argb(55, 190, 169, 255), 20));
+        qualityBadge.setPadding(dp(10), dp(5), dp(10), dp(5));
+        qualityBadge.setGravity(Gravity.CENTER);
 
-        favoriteButton =
-                labelText(
-                        "♡",
-                        31,
-                        Color.WHITE
-                );
+        favoriteButton = labelText("♡", 30, Color.WHITE);
+        favoriteButton.setGravity(Gravity.CENTER);
+        favoriteButton.setPadding(dp(10), 0, dp(8), 0);
+        favoriteButton.setOnClickListener(v -> toggleFavorite());
 
-        favoriteButton.setGravity(
-                Gravity.CENTER
-        );
+        metaRow.addView(qualityBadge, new LinearLayout.LayoutParams(-2, -2));
+        metaRow.addView(favoriteButton, new LinearLayout.LayoutParams(dp(52), dp(52)));
 
-        favoriteButton.setOnClickListener(
-                v -> toggleFavorite()
-        );
+        playerScreen.addView(metaRow, new LinearLayout.LayoutParams(-1, -2));
 
-        infoRow.addView(
-                favoriteButton,
-                new LinearLayout.LayoutParams(
-                        dp(52),
-                        dp(54)
-                )
-        );
+        LinearLayout timeRow = new LinearLayout(this);
+        timeRow.setGravity(Gravity.CENTER_VERTICAL);
+        timeRow.setPadding(0, dp(10), 0, 0);
 
-        content.addView(
-                infoRow
-        );
+        currentTime = timeText("0:00");
+        totalTime = timeText("0:00");
 
-        // PROGRESS
-
-        LinearLayout timeRow =
-                new LinearLayout(this);
-
-        timeRow.setGravity(
-                Gravity.CENTER_VERTICAL
-        );
-
-        currentTime =
-                timeText("0:00");
-
-        totalTime =
-                timeText("0:00");
-
-        progress =
-                new SeekBar(this);
-
-        progress.setMax(
-                1000
-        );
-
-        progress.setProgress(
-                0
-        );
-
-        progress.setPadding(
-                0,
-                0,
-                0,
-                0
-        );
-
-        progress.setOnSeekBarChangeListener(
-                new SeekBar.OnSeekBarChangeListener() {
-
-                    @Override
-                    public void onProgressChanged(
-                            SeekBar seekBar,
-                            int value,
-                            boolean fromUser
-                    ) {
-
-                        if (
-                                fromUser &&
-                                controller != null
-                        ) {
-
-                            long duration =
-                                    controller.getDuration();
-
-                            if (duration > 0) {
-
-                                currentTime.setText(
-                                        formatTime(
-                                                duration *
-                                                        value /
-                                                        1000L
-                                        )
-                                );
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(
-                            SeekBar seekBar
-                    ) {
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(
-                            SeekBar seekBar
-                    ) {
-
-                        if (controller != null) {
-
-                            long duration =
-                                    controller.getDuration();
-
-                            if (duration > 0) {
-
-                                controller.seekTo(
-                                        duration *
-                                                seekBar.getProgress()
-                                                / 1000L
-                                );
-                            }
-                        }
+        progress = new SeekBar(this);
+        progress.setMax(1000);
+        progress.setProgress(0);
+        progress.setPadding(0, 0, 0, 0);
+        progress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
+                if (fromUser && controller != null) {
+                    long duration = controller.getDuration();
+                    if (duration > 0) {
+                        currentTime.setText(formatTime(duration * value / 1000L));
                     }
                 }
-        );
+            }
 
-        timeRow.addView(
-                currentTime,
-                new LinearLayout.LayoutParams(
-                        dp(40),
-                        dp(42)
-                )
-        );
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
 
-        timeRow.addView(
-                progress,
-                new LinearLayout.LayoutParams(
-                        0,
-                        dp(42),
-                        1
-                )
-        );
-
-        timeRow.addView(
-                totalTime,
-                new LinearLayout.LayoutParams(
-                        dp(40),
-                        dp(42)
-                )
-        );
-
-        content.addView(
-                timeRow
-        );
-
-        // CONTROLS
-
-        LinearLayout controls =
-                new LinearLayout(this);
-
-        controls.setGravity(
-                Gravity.CENTER
-        );
-
-        ImageButton previous =
-                iconButton(
-                        android.R.drawable
-                                .ic_media_previous
-                );
-
-        previous.setOnClickListener(
-                v -> {
-
-                    if (controller != null) {
-                        controller
-                                .seekToPreviousMediaItem();
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                if (controller != null) {
+                    long duration = controller.getDuration();
+                    if (duration > 0) {
+                        controller.seekTo(duration * seekBar.getProgress() / 1000L);
                     }
                 }
-        );
+            }
+        });
 
-        playButton =
-                iconButton(
-                        android.R.drawable
-                                .ic_media_play
-                );
+        timeRow.addView(currentTime, new LinearLayout.LayoutParams(dp(42), dp(32)));
+        timeRow.addView(progress, new LinearLayout.LayoutParams(0, dp(42), 1));
+        timeRow.addView(totalTime, new LinearLayout.LayoutParams(dp(42), dp(32)));
 
-        playButton.setBackground(
-                roundedBackground(
-                        Color.rgb(
-                                190,
-                                169,
-                                255
-                        ),
-                        50
-                )
-        );
+        playerScreen.addView(timeRow, new LinearLayout.LayoutParams(-1, -2));
 
-        playButton.setColorFilter(
-                Color.rgb(
-                        18,
-                        17,
-                        23
-                )
-        );
+        LinearLayout controls = new LinearLayout(this);
+        controls.setGravity(Gravity.CENTER);
+        controls.setPadding(0, dp(22), 0, dp(12));
 
-        playButton.setPadding(
-                dp(18),
-                dp(18),
-                dp(18),
-                dp(18)
-        );
+        ImageButton previous = iconButton(android.R.drawable.ic_media_previous);
+        previous.setOnClickListener(v -> {
+            if (controller != null) {
+                controller.seekToPreviousMediaItem();
+            }
+        });
 
-        playButton.setOnClickListener(
-                v -> togglePlayback()
-        );
+        playButton = iconButton(android.R.drawable.ic_media_play);
+        playButton.setBackground(roundedBackground(Color.rgb(190, 169, 255), 50));
+        playButton.setColorFilter(Color.rgb(18, 17, 23));
+        playButton.setPadding(dp(18), dp(18), dp(18), dp(18));
+        playButton.setOnClickListener(v -> togglePlayback());
 
-        ImageButton next =
-                iconButton(
-                        android.R.drawable
-                                .ic_media_next
-                );
+        ImageButton next = iconButton(android.R.drawable.ic_media_next);
+        next.setOnClickListener(v -> {
+            if (controller != null) {
+                controller.seekToNextMediaItem();
+            }
+        });
 
-        next.setOnClickListener(
-                v -> {
+        controls.addView(previous, new LinearLayout.LayoutParams(dp(64), dp(64)));
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(82), dp(82));
+        playParams.setMargins(dp(12), 0, dp(12), 0);
+        controls.addView(playButton, playParams);
+        controls.addView(next, new LinearLayout.LayoutParams(dp(64), dp(64)));
 
-                    if (controller != null) {
-                        controller
-                                .seekToNextMediaItem();
-                    }
+        playerScreen.addView(controls, new LinearLayout.LayoutParams(-1, dp(96)));
+
+        LinearLayout volumeRow = new LinearLayout(this);
+        volumeRow.setGravity(Gravity.CENTER_VERTICAL);
+        volumeRow.setPadding(0, dp(4), 0, dp(8));
+
+        TextView low = labelText("−", 18, Color.rgb(155, 155, 165));
+        TextView high = labelText("+", 18, Color.rgb(155, 155, 165));
+
+        volume = new SeekBar(this);
+        volume.setMax(100);
+        volume.setProgress(100);
+        volume.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
+                if (fromUser && controller != null) {
+                    controller.setVolume(value / 100f);
                 }
-        );
+            }
 
-        controls.addView(
-                previous,
-                new LinearLayout.LayoutParams(
-                        dp(64),
-                        dp(64)
-                )
-        );
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
 
-        LinearLayout.LayoutParams playParams =
-                new LinearLayout.LayoutParams(
-                        dp(78),
-                        dp(78)
-                );
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
 
-        playParams.setMargins(
-                dp(12),
-                0,
-                dp(12),
-                0
-        );
+        volumeRow.addView(low, new LinearLayout.LayoutParams(dp(28), dp(40)));
+        volumeRow.addView(volume, new LinearLayout.LayoutParams(0, dp(40), 1));
+        volumeRow.addView(high, new LinearLayout.LayoutParams(dp(28), dp(40)));
 
-        controls.addView(
-                playButton,
-                playParams
-        );
+        playerScreen.addView(volumeRow, new LinearLayout.LayoutParams(-1, -2));
 
-        controls.addView(
-                next,
-                new LinearLayout.LayoutParams(
-                        dp(64),
-                        dp(64)
-                )
-        );
+        LinearLayout glassPanel = new LinearLayout(this);
+        glassPanel.setGravity(Gravity.CENTER);
+        glassPanel.setPadding(dp(6), dp(4), dp(6), dp(4));
+        glassPanel.setBackground(roundedBackground(Color.argb(68, 255, 255, 255), 22));
 
-        content.addView(
-                controls,
-                new LinearLayout.LayoutParams(
-                        -1,
-                        dp(84)
-                )
-        );
+        TextView lyrics = actionText("LYRICS");
+        TextView queue = actionText("QUEUE");
+        TextView moreAction = actionText("MORE");
 
-        // VOLUME
+        lyrics.setOnClickListener(v -> showLyrics());
+        queue.setOnClickListener(v -> showQueue());
+        moreAction.setOnClickListener(v -> showPlayerOptions());
 
-        LinearLayout volumeRow =
-                new LinearLayout(this);
+        glassPanel.addView(lyrics, actionParams());
+        glassPanel.addView(queue, actionParams());
+        glassPanel.addView(moreAction, actionParams());
 
-        volumeRow.setGravity(
-                Gravity.CENTER_VERTICAL
-        );
+        LinearLayout.LayoutParams glassParams = new LinearLayout.LayoutParams(-1, dp(54));
+        glassParams.topMargin = dp(14);
+        playerScreen.addView(glassPanel, glassParams);
 
-        TextView low =
-                labelText(
-                        "−",
-                        18,
-                        Color.rgb(
-                                155,
-                                155,
-                                165
-                        )
-                );
+        content.addView(playerScreen, new LinearLayout.LayoutParams(-1, -1));
 
-        TextView high =
-                labelText(
-                        "+",
-                        18,
-                        Color.rgb(
-                                155,
-                                155,
-                                165
-                        )
-                );
+        modeOverlay = new FrameLayout(this);
+        modeOverlay.setBackgroundColor(Color.argb(245, 8, 8, 11));
+        modeOverlay.setVisibility(View.GONE);
+        modeOverlay.setAlpha(0f);
 
-        volume =
-                new SeekBar(this);
+        lyricsSheet = buildLyricsSheet();
+        queueSheet = buildQueueSheet();
 
-        volume.setMax(
-                100
-        );
-
-        volume.setProgress(
-                100
-        );
-
-        volume.setOnSeekBarChangeListener(
-                new SeekBar.OnSeekBarChangeListener() {
-
-                    @Override
-                    public void onProgressChanged(
-                            SeekBar seekBar,
-                            int value,
-                            boolean fromUser
-                    ) {
-
-                        if (
-                                fromUser &&
-                                controller != null
-                        ) {
-
-                            controller.setVolume(
-                                    value / 100f
-                            );
-                        }
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(
-                            SeekBar seekBar
-                    ) {
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(
-                            SeekBar seekBar
-                    ) {
-                    }
-                }
-        );
-
-        volumeRow.addView(
-                low,
-                new LinearLayout.LayoutParams(
-                        dp(28),
-                        dp(40)
-                )
-        );
-
-        volumeRow.addView(
-                volume,
-                new LinearLayout.LayoutParams(
-                        0,
-                        dp(40),
-                        1
-                )
-        );
-
-        volumeRow.addView(
-                high,
-                new LinearLayout.LayoutParams(
-                        dp(28),
-                        dp(40)
-                )
-        );
-
-        content.addView(
-                volumeRow
-        );
-
-        // BOTTOM ACTION PANEL
-
-        LinearLayout glassPanel =
-                new LinearLayout(this);
-
-        glassPanel.setGravity(
-                Gravity.CENTER
-        );
-
-        glassPanel.setPadding(
-                dp(6),
-                dp(2),
-                dp(6),
-                dp(2)
-        );
-
-        glassPanel.setBackground(
-                roundedBackground(
-                        Color.argb(
-                                68,
-                                255,
-                                255,
-                                255
-                        ),
-                        22
-                )
-        );
-
-        TextView lyrics =
-                actionText("LYRICS");
-
-        TextView queue =
-                actionText("QUEUE");
-
-        TextView moreAction =
-                actionText("MORE");
-
-        lyrics.setOnClickListener(
-                v -> showLyrics()
-        );
-
-        queue.setOnClickListener(
-                v -> showQueue()
-        );
-
-        moreAction.setOnClickListener(
-                v -> showPlayerOptions()
-        );
-
-        glassPanel.addView(
-                lyrics,
-                actionParams()
-        );
-
-        glassPanel.addView(
-                queue,
-                actionParams()
-        );
-
-        glassPanel.addView(
-                moreAction,
-                actionParams()
-        );
-
-        LinearLayout.LayoutParams glassParams =
-                new LinearLayout.LayoutParams(
-                        -1,
-                        dp(54)
-                );
-
-        glassParams.topMargin =
-                dp(7);
-
-        content.addView(
-                glassPanel,
-                glassParams
-        );
+        modeOverlay.addView(lyricsSheet, new FrameLayout.LayoutParams(-1, -1));
+        modeOverlay.addView(queueSheet, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(modeOverlay, new FrameLayout.LayoutParams(-1, -1));
 
         setContentView(root);
+    }
+
+    private LinearLayout buildLyricsSheet() {
+        LinearLayout sheet = new LinearLayout(this);
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setPadding(dp(20), dp(16), dp(20), dp(16));
+        sheet.setBackgroundColor(Color.argb(248, 8, 8, 11));
+        sheet.setVisibility(View.GONE);
+
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageButton close = iconButton(android.R.drawable.ic_menu_close_clear_cancel);
+        close.setOnClickListener(v -> hideModeOverlay());
+
+        LinearLayout labelGroup = new LinearLayout(this);
+        labelGroup.setOrientation(LinearLayout.VERTICAL);
+        labelGroup.setGravity(Gravity.CENTER);
+
+        TextView panelTag = labelText("LYRICS", 10, Color.rgb(190, 190, 200));
+        TextView panelTitle = labelText("VELORA", 9, Color.rgb(115, 115, 125));
+        labelGroup.addView(panelTag);
+        labelGroup.addView(panelTitle);
+
+        topBar.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        topBar.addView(labelGroup, new LinearLayout.LayoutParams(0, dp(52), 1));
+
+        sheet.addView(topBar, new LinearLayout.LayoutParams(-1, dp(58)));
+
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+
+        lyricsBody = new TextView(this);
+        lyricsBody.setTextColor(Color.rgb(242, 242, 246));
+        lyricsBody.setTextSize(21);
+        lyricsBody.setGravity(Gravity.CENTER_HORIZONTAL);
+        lyricsBody.setLineSpacing(dp(7), 1.12f);
+        lyricsBody.setPadding(dp(12), dp(35), dp(12), dp(60));
+        lyricsBody.setText("Lyrics are not available for this track yet.");
+
+        scroll.addView(lyricsBody, new android.widget.ScrollView.LayoutParams(-1, -2));
+        sheet.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        TextView playingTag = labelText("NOW PLAYING", 9, Color.rgb(190, 170, 245));
+        playingTag.setPadding(0, dp(5), 0, dp(5));
+        sheet.addView(playingTag, new LinearLayout.LayoutParams(-1, dp(32)));
+
+        return sheet;
+    }
+
+    private LinearLayout buildQueueSheet() {
+        LinearLayout sheet = new LinearLayout(this);
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setPadding(dp(20), dp(16), dp(20), dp(16));
+        sheet.setBackgroundColor(Color.argb(248, 8, 8, 11));
+        sheet.setVisibility(View.GONE);
+
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageButton close = iconButton(android.R.drawable.ic_menu_close_clear_cancel);
+        close.setOnClickListener(v -> hideModeOverlay());
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.VERTICAL);
+        heading.setGravity(Gravity.CENTER);
+        heading.addView(labelText("QUEUE", 10, Color.rgb(190, 190, 200)));
+        heading.addView(labelText("VELORA", 9, Color.rgb(115, 115, 125)));
+
+        topBar.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        topBar.addView(heading, new LinearLayout.LayoutParams(0, dp(52), 1));
+        sheet.addView(topBar, new LinearLayout.LayoutParams(-1, dp(58)));
+
+        queueListContainer = new LinearLayout(this);
+        queueListContainer.setOrientation(LinearLayout.VERTICAL);
+        queueListContainer.setPadding(0, dp(8), 0, dp(8));
+
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.addView(queueListContainer, new android.widget.ScrollView.LayoutParams(-1, -2));
+        sheet.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        return sheet;
+    }
+
+    private void hideModeOverlay() {
+        if (modeOverlay == null) {
+            return;
+        }
+
+        modeOverlay.animate()
+                .alpha(0f)
+                .translationY(dp(12))
+                .setDuration(180)
+                .withEndAction(() -> {
+                    modeOverlay.setVisibility(View.GONE);
+                    lyricsSheet.setVisibility(View.GONE);
+                    queueSheet.setVisibility(View.GONE);
+                    playerScreen.setAlpha(1f);
+                    playerScreen.setTranslationY(0f);
+                })
+                .start();
+    }
+
+    private void showLyricsSheet() {
+        if (controller == null || controller.getCurrentMediaItem() == null) {
+            showMessage("Lyrics", "Nothing is playing.");
+            return;
+        }
+
+        if (lyricsBody == null) {
+            return;
+        }
+
+        MediaMetadata metadata = controller.getCurrentMediaItem().mediaMetadata;
+        String lyricsText = metadata.description != null
+                ? metadata.description.toString()
+                : "Lyrics are not available for this track yet.";
+        lyricsBody.setText(lyricsText);
+
+        lyricsSheet.setVisibility(View.VISIBLE);
+        queueSheet.setVisibility(View.GONE);
+        modeOverlay.setVisibility(View.VISIBLE);
+        modeOverlay.setAlpha(0f);
+        modeOverlay.setTranslationY(dp(18));
+        modeOverlay.animate().alpha(1f).translationY(0f).setDuration(220).start();
+        playerScreen.animate().alpha(0.18f).translationY(dp(12)).setDuration(180).start();
+    }
+
+    private void showQueueSheet() {
+        if (controller == null || controller.getMediaItemCount() == 0) {
+            showMessage("Queue", "Your queue is empty.");
+            return;
+        }
+
+        refreshQueueOverlay();
+        queueSheet.setVisibility(View.VISIBLE);
+        lyricsSheet.setVisibility(View.GONE);
+        modeOverlay.setVisibility(View.VISIBLE);
+        modeOverlay.setAlpha(0f);
+        modeOverlay.setTranslationY(dp(18));
+        modeOverlay.animate().alpha(1f).translationY(0f).setDuration(220).start();
+        playerScreen.animate().alpha(0.18f).translationY(dp(12)).setDuration(180).start();
+    }
+
+    private void refreshQueueOverlay() {
+        if (queueListContainer == null || controller == null) {
+            return;
+        }
+
+        queueListContainer.removeAllViews();
+
+        for (int i = 0; i < controller.getMediaItemCount(); i++) {
+            MediaItem item = controller.getMediaItemAt(i);
+            MediaMetadata metadata = item.mediaMetadata;
+            String trackName = metadata.title != null ? metadata.title.toString() : "Unknown Song";
+            String artistName = metadata.artist != null ? metadata.artist.toString() : "Velora Music";
+            boolean current = i == controller.getCurrentMediaItemIndex();
+
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(10), dp(10), dp(10), dp(10));
+            row.setBackground(roundedBackground(current ? Color.argb(55, 190, 169, 255) : Color.argb(28, 255, 255, 255), 18));
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+            rowParams.bottomMargin = dp(8);
+            row.setLayoutParams(rowParams);
+
+            ImageView thumb = new ImageView(this);
+            thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            thumb.setBackground(roundedBackground(Color.rgb(34, 34, 42), 14));
+            thumb.setLayoutParams(new LinearLayout.LayoutParams(dp(50), dp(50)));
+            Bitmap art = resolveArtwork(item);
+            if (art != null) {
+                thumb.setImageBitmap(art);
+            }
+            row.addView(thumb);
+
+            LinearLayout textWrap = new LinearLayout(this);
+            textWrap.setOrientation(LinearLayout.VERTICAL);
+            textWrap.setPadding(dp(12), 0, 0, 0);
+            textWrap.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+
+            TextView rowTitle = labelText(current ? "▶  " + trackName : trackName, 15, Color.WHITE);
+            rowTitle.setSingleLine(true);
+            rowTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            rowTitle.setGravity(Gravity.START);
+
+            TextView rowArtist = labelText(artistName, 12, Color.rgb(162, 162, 175));
+            rowArtist.setSingleLine(true);
+            rowArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            rowArtist.setGravity(Gravity.START);
+
+            textWrap.addView(rowTitle);
+            textWrap.addView(rowArtist);
+            row.addView(textWrap);
+
+            row.setOnClickListener(v -> {
+                if (controller != null) {
+                    controller.seekToDefaultPosition(i);
+                    hideModeOverlay();
+                }
+            });
+
+            queueListContainer.addView(row);
+        }
+    }
+
+    private Bitmap resolveArtwork(MediaItem item) {
+        if (item == null) {
+            return null;
+        }
+
+        MediaMetadata metadata = item.mediaMetadata;
+        if (metadata != null && metadata.artworkData != null) {
+            Bitmap art = BitmapFactory.decodeByteArray(metadata.artworkData, 0, metadata.artworkData.length);
+            if (art != null) {
+                return art;
+            }
+        }
+
+        if (item.localConfiguration != null) {
+            return getEmbeddedArtwork(item.localConfiguration.uri);
+        }
+
+        return null;
     }
 
     private void refreshPlayer() {
@@ -1352,323 +1098,12 @@ public class PlayerActivity extends Activity {
     }
 
     private void showQueue() {
-
-        if (
-                controller == null ||
-                controller.getMediaItemCount() == 0
-        ) {
-
-            showMessage(
-                    "Queue",
-                    "Your queue is empty."
-            );
-
-            return;
-        }
-
-        List<String> names =
-                new ArrayList<>();
-
-        for (
-                int i = 0;
-                i < controller.getMediaItemCount();
-                i++
-        ) {
-
-            MediaMetadata metadata =
-                    controller
-                            .getMediaItemAt(i)
-                            .mediaMetadata;
-
-            String name =
-                    metadata.title != null
-                            ? metadata.title.toString()
-                            : "Unknown Song";
-
-            if (
-                    i ==
-                            controller
-                                    .getCurrentMediaItemIndex()
-            ) {
-
-                name =
-                        "▶  " + name;
-            }
-
-            names.add(name);
-        }
-
-        new AlertDialog.Builder(this)
-                .setTitle("Queue")
-                .setItems(
-                        names.toArray(
-                                new String[0]
-                        ),
-                        (dialog, which) -> {
-
-                            controller.seekToDefaultPosition(
-                                    which
-                            );
-                        }
-                )
-                .setNegativeButton(
-                        "Close",
-                        null
-                )
-                .show();
+        showQueueSheet();
     }
 
-private void showLyrics() {
-
-    if (
-            controller == null ||
-            controller.getCurrentMediaItem() == null
-    ) {
-        showMessage(
-                "Lyrics",
-                "Nothing is playing."
-        );
-        return;
+    private void showLyrics() {
+        showLyricsSheet();
     }
-
-    MediaMetadata metadata =
-            controller
-                    .getCurrentMediaItem()
-                    .mediaMetadata;
-
-    String lyricsText =
-            metadata.description != null
-                    ? metadata.description.toString()
-                    : "Lyrics are not available for this track yet.";
-
-    FrameLayout lyricsOverlay =
-            new FrameLayout(this);
-
-    lyricsOverlay.setBackgroundColor(
-            Color.rgb(8, 8, 11)
-    );
-
-    LinearLayout lyricsContainer =
-            new LinearLayout(this);
-
-    lyricsContainer.setOrientation(
-            LinearLayout.VERTICAL
-    );
-
-    lyricsContainer.setPadding(
-            dp(20),
-            dp(18),
-            dp(20),
-            dp(20)
-    );
-
-    // TOP BAR
-
-    LinearLayout topBar =
-            new LinearLayout(this);
-
-    topBar.setGravity(
-            Gravity.CENTER_VERTICAL
-    );
-
-    ImageButton closeLyrics =
-            iconButton(
-                    android.R.drawable
-                            .ic_menu_close_clear_cancel
-            );
-
-    closeLyrics.setOnClickListener(
-            v -> {
-                lyricsOverlay.animate()
-                        .alpha(0f)
-                        .setDuration(180)
-                        .withEndAction(
-                                () -> root.removeView(
-                                        lyricsOverlay
-                                )
-                        )
-                        .start();
-            }
-    );
-
-    topBar.addView(
-            closeLyrics,
-            new LinearLayout.LayoutParams(
-                    dp(48),
-                    dp(48)
-            )
-    );
-
-    LinearLayout heading =
-            new LinearLayout(this);
-
-    heading.setOrientation(
-            LinearLayout.VERTICAL
-    );
-
-    heading.setGravity(
-            Gravity.CENTER
-    );
-
-    TextView headingTitle =
-            labelText(
-                    "LYRICS",
-                    11,
-                    Color.rgb(
-                            190,
-                            190,
-                            200
-                    )
-            );
-
-    TextView headingSong =
-            labelText(
-                    title.getText().toString(),
-                    9,
-                    Color.rgb(
-                            115,
-                            115,
-                            125
-                    )
-            );
-
-    heading.addView(
-            headingTitle
-    );
-
-    heading.addView(
-            headingSong
-    );
-
-    topBar.addView(
-            heading,
-            new LinearLayout.LayoutParams(
-                    0,
-                    dp(48),
-                    1
-            )
-    );
-
-    lyricsContainer.addView(
-            topBar,
-            new LinearLayout.LayoutParams(
-                    -1,
-                    dp(58)
-            )
-    );
-
-    // LYRICS
-
-    android.widget.ScrollView scroll =
-            new android.widget.ScrollView(this);
-
-    scroll.setFillViewport(true);
-
-    TextView lyrics =
-            new TextView(this);
-
-    lyrics.setText(
-            lyricsText
-    );
-
-    lyrics.setTextColor(
-            Color.rgb(
-                    242,
-                    242,
-                    246
-            )
-    );
-
-    lyrics.setTextSize(
-            21
-    );
-
-    lyrics.setGravity(
-            Gravity.CENTER_HORIZONTAL
-    );
-
-    lyrics.setLineSpacing(
-            dp(7),
-            1.12f
-    );
-
-    lyrics.setPadding(
-            dp(12),
-            dp(35),
-            dp(12),
-            dp(60)
-    );
-
-    scroll.addView(
-            lyrics,
-            new android.widget.ScrollView.LayoutParams(
-                    -1,
-                    -2
-            )
-    );
-
-    lyricsContainer.addView(
-            scroll,
-            new LinearLayout.LayoutParams(
-                    -1,
-                    0,
-                    1
-            )
-    );
-
-    // PLAYER INDICATOR
-
-    TextView playing =
-            labelText(
-                    "NOW PLAYING",
-                    9,
-                    Color.rgb(
-                            190,
-                            170,
-                            245
-                    )
-            );
-
-    playing.setPadding(
-            0,
-            dp(5),
-            0,
-            dp(5)
-    );
-
-    lyricsContainer.addView(
-            playing,
-            new LinearLayout.LayoutParams(
-                    -1,
-                    dp(32)
-            )
-    );
-
-    lyricsOverlay.addView(
-            lyricsContainer,
-            new FrameLayout.LayoutParams(
-                    -1,
-                    -1
-            )
-    );
-
-    lyricsOverlay.setAlpha(
-            0f
-    );
-
-    root.addView(
-            lyricsOverlay,
-            new FrameLayout.LayoutParams(
-                    -1,
-                    -1
-            )
-    );
-
-    lyricsOverlay.animate()
-            .alpha(1f)
-            .setDuration(220)
-            .start();
-}
 
     private void showPlayerOptions() {
 
