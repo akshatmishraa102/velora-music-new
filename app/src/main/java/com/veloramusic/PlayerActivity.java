@@ -642,6 +642,7 @@ public class PlayerActivity extends Activity {
         queueListContainer.removeAllViews();
 
         for (int i = 0; i < controller.getMediaItemCount(); i++) {
+            final int queueIndex = i;
             MediaItem item = controller.getMediaItemAt(i);
             MediaMetadata metadata = item.mediaMetadata;
             String trackName = metadata.title != null ? metadata.title.toString() : "Unknown Song";
@@ -688,7 +689,7 @@ public class PlayerActivity extends Activity {
 
             row.setOnClickListener(v -> {
                 if (controller != null) {
-                    controller.seekToDefaultPosition(i);
+                    controller.seekToDefaultPosition(queueIndex);
                     hideModeOverlay();
                 }
             });
