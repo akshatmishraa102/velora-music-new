@@ -48,6 +48,7 @@ public class MainActivity extends Activity {
     private static final String KEY_THEME = "theme";
 
     private final List<Song> songs = new ArrayList<>();
+    private final List<Song> recentlyPlayed = new ArrayList<>();
 
     private MediaController controller;
     private TextView nowTitle;
@@ -549,33 +550,43 @@ public class MainActivity extends Activity {
         info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
         info.setPadding(0, 0, dp(18), 0);
 
-        TextView heroEyebrow = textView("PERSONAL MIX", Color.argb(220, 255, 255, 255), 10f);
+        TextView heroEyebrow = textView("CONTINUE LISTENING", Color.argb(220, 255, 255, 255), 10f);
         heroEyebrow.setTypeface(null, Typeface.BOLD);
         heroEyebrow.setLetterSpacing(0.18f);
 
-        TextView heroTitle = textView(songs.isEmpty() ? "Start listening" : "Your evening mix", Color.WHITE, 26f);
+        Song activeSong = getCurrentSongFromPlayer();
+        String heroTitleText = activeSong != null ? activeSong.title : (songs.isEmpty() ? "Start listening" : songs.get(0).title);
+        String heroSubtitleText = activeSong != null ? activeSong.artist : (songs.isEmpty() ? "Build your home with your own library." : "Your latest library pick");
+
+        TextView heroTitle = textView(heroTitleText, Color.WHITE, 26f);
         heroTitle.setTypeface(null, Typeface.BOLD);
         heroTitle.setPadding(0, dp(8), 0, dp(6));
+        heroTitle.setSingleLine(true);
+        heroTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
-        TextView heroSubtitle = textView(songs.isEmpty() ? "Build your home with your own library." : "A hand-picked mix from your music library.", Color.argb(205, 255, 255, 255), 13f);
+        TextView heroSubtitle = textView(heroSubtitleText, Color.argb(205, 255, 255, 255), 13f);
+        heroSubtitle.setSingleLine(true);
+        heroSubtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         info.addView(heroEyebrow);
         info.addView(heroTitle);
         info.addView(heroSubtitle);
 
-        TextView cover = textView(songs.isEmpty() ? "♪" : "V", Color.WHITE, 30f);
+        TextView cover = textView(activeSong != null ? activeSong.title.substring(0, 1).toUpperCase(Locale.US) : (songs.isEmpty() ? "♪" : "V"), Color.WHITE, 30f);
         cover.setGravity(Gravity.CENTER);
         cover.setBackground(round(Color.argb(35, 255, 255, 255), 22));
         cover.setPadding(dp(18), dp(18), dp(18), dp(18));
         cover.setLayoutParams(new LinearLayout.LayoutParams(dp(96), dp(96)));
 
         Button heroPlay = new Button(this);
-        heroPlay.setText("▶");
+        heroPlay.setText(controller != null && controller.isPlaying() ? "Ⅱ" : "▶");
         heroPlay.setTextColor(Color.WHITE);
         heroPlay.setTextSize(18);
         heroPlay.setBackground(round(Color.argb(175, 255, 255, 255), 999));
         heroPlay.setOnClickListener(v -> {
-            if (!songs.isEmpty()) {
+            if (activeSong != null) {
+                playSong(activeSong);
+            } else if (!songs.isEmpty()) {
                 playSong(songs.get(0));
             } else {
                 showLibrary();
@@ -593,18 +604,16 @@ public class MainActivity extends Activity {
         heroWrap.addView(heroCard, new LinearLayout.LayoutParams(-1, dp(180)));
         content.addView(heroWrap);
 
-        addSectionTitle("Recently played");
-        if (songs.isEmpty()) {
-            content.addView(emptyCard("Your recent listens will appear here."));
-        } else {
+        if (!recentlyPlayed.isEmpty()) {
+            addSectionTitle("Recently played");
             HorizontalScrollView recentScroll = new HorizontalScrollView(this);
             recentScroll.setHorizontalScrollBarEnabled(false);
             recentScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
             LinearLayout recentRow = new LinearLayout(this);
             recentRow.setOrientation(LinearLayout.HORIZONTAL);
             recentRow.setPadding(0, 0, 0, dp(10));
-            for (int i = 0; i < Math.min(7, songs.size()); i++) {
-                recentRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+            for (int i = 0; i < Math.min(7, recentlyPlayed.size()); i++) {
+                recentRow.addView(buildMediaCard(recentlyPlayed.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
             }
             recentScroll.addView(recentRow);
             content.addView(recentScroll, new LinearLayout.LayoutParams(-1, -2));
@@ -633,10 +642,8 @@ public class MainActivity extends Activity {
         }
         content.addView(insightRow);
 
-        addSectionTitle("Albums");
-        if (songs.isEmpty()) {
-            content.addView(emptyCard("Add music to fill your album shelf."));
-        } else {
+        if (!songs.isEmpty()) {
+            addSectionTitle("Albums");
             HorizontalScrollView albumScroll = new HorizontalScrollView(this);
             albumScroll.setHorizontalScrollBarEnabled(false);
             albumScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -648,24 +655,20 @@ public class MainActivity extends Activity {
             }
             albumScroll.addView(albumRow);
             content.addView(albumScroll, new LinearLayout.LayoutParams(-1, -2));
-        }
 
-        addSectionTitle("Quick picks");
-        HorizontalScrollView quickScroll = new HorizontalScrollView(this);
-        quickScroll.setHorizontalScrollBarEnabled(false);
-        quickScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        LinearLayout quickRow = new LinearLayout(this);
-        quickRow.setOrientation(LinearLayout.HORIZONTAL);
-        quickRow.setPadding(0, 0, 0, dp(8));
-        if (songs.isEmpty()) {
-            quickRow.addView(emptyCard("Add tracks to build your quick mix."), new LinearLayout.LayoutParams(-1, -2));
-        } else {
+            addSectionTitle("Quick picks");
+            HorizontalScrollView quickScroll = new HorizontalScrollView(this);
+            quickScroll.setHorizontalScrollBarEnabled(false);
+            quickScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout quickRow = new LinearLayout(this);
+            quickRow.setOrientation(LinearLayout.HORIZONTAL);
+            quickRow.setPadding(0, 0, 0, dp(8));
             for (int i = 0; i < Math.min(5, songs.size()); i++) {
                 quickRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
             }
+            quickScroll.addView(quickRow);
+            content.addView(quickScroll, new LinearLayout.LayoutParams(-1, -2));
         }
-        quickScroll.addView(quickRow);
-        content.addView(quickScroll, new LinearLayout.LayoutParams(-1, -2));
     }
 
     private View buildMediaCard(Song song, boolean strongAccent) {
@@ -1063,9 +1066,17 @@ public class MainActivity extends Activity {
         }
 
         if (matches.isEmpty()) {
-            TextView empty = textView("No matches found in your library.", resolveSecondaryTextColor(), 13f);
-            empty.setPadding(dp(8), dp(12), 0, dp(12));
-            content.addView(empty);
+            LinearLayout emptyState = new LinearLayout(this);
+            emptyState.setOrientation(LinearLayout.VERTICAL);
+            emptyState.setPadding(dp(12), dp(16), dp(12), dp(12));
+            emptyState.setBackground(round(resolveSurfaceColor(), 18));
+
+            TextView title = textView("No results found", resolvePrimaryTextColor(), 16f);
+            title.setTypeface(null, Typeface.BOLD);
+            TextView message = textView(query == null || query.isEmpty() ? "Start typing to search your library." : "Try a different title, artist or album name.", resolveSecondaryTextColor(), 13f);
+            emptyState.addView(title);
+            emptyState.addView(message);
+            content.addView(emptyState);
             return;
         }
 
@@ -1222,7 +1233,7 @@ public class MainActivity extends Activity {
     }
 
     private void playSong(Song song) {
-        if (controller == null) {
+        if (song == null || song.uri == null || song.uri.isEmpty() || controller == null) {
             return;
         }
 
@@ -1241,8 +1252,11 @@ public class MainActivity extends Activity {
         controller.prepare();
         controller.play();
 
-        nowTitle.setText(song.title);
-        nowArtist.setText(song.artist);
+        recordRecentSong(song);
+        updateNowPlayingUi();
+        if (selectedTabIndex == 0) {
+            showHome();
+        }
     }
 
     private void togglePlayback() {
@@ -1285,11 +1299,14 @@ public class MainActivity extends Activity {
                                     public void onIsPlayingChanged(
                                             boolean isPlaying
                                     ) {
-                                        playButton.setText(
-                                                isPlaying
-                                                        ? "Ⅱ"
-                                                        : "▶"
-                                        );
+                                        if (playButton != null) {
+                                            playButton.setText(
+                                                    isPlaying
+                                                            ? "Ⅱ"
+                                                            : "▶"
+                                            );
+                                        }
+                                        updateNowPlayingUi();
                                     }
 
                                     @Override
@@ -1307,20 +1324,24 @@ public class MainActivity extends Activity {
                                         CharSequence artist =
                                                 item.mediaMetadata.artist;
 
-                                        nowTitle.setText(
-                                                title == null
-                                                        ? "Nothing playing"
-                                                        : title
+                                        Song itemSong = new Song(
+                                                title == null ? "Unknown Song" : title.toString(),
+                                                artist == null ? "Unknown Artist" : artist.toString(),
+                                                item.localConfiguration != null && item.localConfiguration.uri != null
+                                                        ? item.localConfiguration.uri.toString()
+                                                        : "",
+                                                false
                                         );
-
-                                        nowArtist.setText(
-                                                artist == null
-                                                        ? "Velora Music"
-                                                        : artist
-                                        );
+                                        recordRecentSong(itemSong);
+                                        updateNowPlayingUi();
+                                        if (selectedTabIndex == 0) {
+                                            showHome();
+                                        }
                                     }
                                 }
                         );
+
+                        updateNowPlayingUi();
 
                     } catch (Exception ignored) {
                         controller = null;
@@ -1351,6 +1372,9 @@ public class MainActivity extends Activity {
 
         } else {
             loadLocalSongs();
+            if (selectedTabIndex == 0) {
+                showHome();
+            }
         }
     }
 
@@ -1382,7 +1406,8 @@ public class MainActivity extends Activity {
         String[] projection = {
                 MediaStore.Audio.Media.TITLE,
                 MediaStore.Audio.Media.ARTIST,
-                MediaStore.Audio.Media._ID
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.ALBUM_ID
         };
 
         try (
@@ -1417,6 +1442,11 @@ public class MainActivity extends Activity {
                             MediaStore.Audio.Media._ID
                     );
 
+            int albumIndex =
+                    cursor.getColumnIndex(
+                            MediaStore.Audio.Media.ALBUM_ID
+                    );
+
             while (
                     cursor.moveToNext()
                             && songs.size() < 500
@@ -1431,6 +1461,8 @@ public class MainActivity extends Activity {
                 String artist =
                         cursor.getString(artistIndex);
 
+                long albumId = albumIndex >= 0 ? cursor.getLong(albumIndex) : 0L;
+
                 if (title == null || title.isEmpty()) {
                     title = "Unknown Song";
                 }
@@ -1439,19 +1471,98 @@ public class MainActivity extends Activity {
                     artist = "Unknown Artist";
                 }
 
+                String resolvedUri = android.content.ContentUris.withAppendedId(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        id
+                ).toString();
+
+                String albumArtUri = albumId > 0
+                        ? "content://media/external/audio/albumart/" + albumId
+                        : null;
+
                 songs.add(
                         new Song(
                                 title,
                                 artist,
-                                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                                        + "/"
-                                        + id,
-                                false
+                                resolvedUri,
+                                false,
+                                albumArtUri
                         )
                 );
             }
 
+            if (!songs.isEmpty()) {
+                refreshRecentSongsFromLibrary();
+            }
+
         } catch (Exception ignored) {
+        }
+    }
+
+    private void refreshRecentSongsFromLibrary() {
+        if (recentlyPlayed.isEmpty() && !songs.isEmpty()) {
+            for (int i = 0; i < Math.min(6, songs.size()); i++) {
+                recordRecentSong(songs.get(i));
+            }
+        }
+    }
+
+    private Song getCurrentSongFromPlayer() {
+        if (controller == null || controller.getCurrentMediaItem() == null) {
+            return recentlyPlayed.isEmpty() ? (songs.isEmpty() ? null : songs.get(0)) : recentlyPlayed.get(0);
+        }
+
+        MediaItem current = controller.getCurrentMediaItem();
+        if (current == null || current.mediaMetadata == null) {
+            return null;
+        }
+
+        CharSequence title = current.mediaMetadata.title;
+        CharSequence artist = current.mediaMetadata.artist;
+        String uri = current.localConfiguration != null && current.localConfiguration.uri != null
+                ? current.localConfiguration.uri.toString()
+                : "";
+        return new Song(
+                title == null ? "Unknown Song" : title.toString(),
+                artist == null ? "Unknown Artist" : artist.toString(),
+                uri,
+                false
+        );
+    }
+
+    private void updateNowPlayingUi() {
+        if (nowTitle != null) {
+            Song current = getCurrentSongFromPlayer();
+            if (current != null) {
+                nowTitle.setText(current.title);
+                nowArtist.setText(current.artist);
+            } else {
+                nowTitle.setText("Nothing playing");
+                nowArtist.setText("Velora Music");
+            }
+        }
+
+        if (playButton != null) {
+            playButton.setText(controller != null && controller.isPlaying() ? "Ⅱ" : "▶");
+        }
+    }
+
+    private void recordRecentSong(Song song) {
+        if (song == null || song.title == null || song.title.trim().isEmpty()) {
+            return;
+        }
+
+        for (int i = 0; i < recentlyPlayed.size(); i++) {
+            Song existing = recentlyPlayed.get(i);
+            if (existing != null && existing.title.equals(song.title) && existing.artist.equals(song.artist)) {
+                recentlyPlayed.remove(i);
+                break;
+            }
+        }
+
+        recentlyPlayed.add(0, song);
+        while (recentlyPlayed.size() > 8) {
+            recentlyPlayed.remove(recentlyPlayed.size() - 1);
         }
     }
 
@@ -1461,6 +1572,7 @@ public class MainActivity extends Activity {
         final String artist;
         final String uri;
         final boolean online;
+        final String albumArtUri;
 
         Song(
                 String title,
@@ -1468,10 +1580,21 @@ public class MainActivity extends Activity {
                 String uri,
                 boolean online
         ) {
-            this.title = title;
-            this.artist = artist;
-            this.uri = uri;
+            this(title, artist, uri, online, null);
+        }
+
+        Song(
+                String title,
+                String artist,
+                String uri,
+                boolean online,
+                String albumArtUri
+        ) {
+            this.title = title == null ? "Unknown Song" : title;
+            this.artist = artist == null ? "Unknown Artist" : artist;
+            this.uri = uri == null ? "" : uri;
             this.online = online;
+            this.albumArtUri = albumArtUri;
         }
     }
 }
