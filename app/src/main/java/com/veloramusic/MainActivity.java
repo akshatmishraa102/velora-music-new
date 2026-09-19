@@ -54,6 +54,8 @@ public class MainActivity extends Activity {
     private TextView nowArtist;
     private Button playButton;
     private LinearLayout content;
+    private View navigationView;
+    private int selectedTabIndex = 0;
     private SharedPreferences preferences;
     private String currentTheme = "dark";
     private int searchResultsIndex = 0;
@@ -200,38 +202,84 @@ public class MainActivity extends Activity {
 
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         root.addView(buildMiniPlayer());
-        root.addView(buildNavigation());
+        navigationView = buildNavigation();
+        root.addView(navigationView);
 
         setContentView(root);
         showHome();
     }
 
+    private void updateNavigationSelection() {
+        if (!(navigationView instanceof LinearLayout)) {
+            return;
+        }
+
+        LinearLayout bar = (LinearLayout) navigationView;
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View child = bar.getChildAt(i);
+            if (!(child instanceof LinearLayout)) {
+                continue;
+            }
+
+            boolean selected = i == selectedTabIndex;
+            child.setBackground(selected ? round(accent, 18) : null);
+
+            if (child.getChildCount() >= 2) {
+                TextView icon = (TextView) child.getChildAt(0);
+                TextView label = (TextView) child.getChildAt(1);
+                icon.setTextColor(selected ? Color.WHITE : resolveSecondaryTextColor());
+                label.setTextColor(selected ? Color.WHITE : resolveSecondaryTextColor());
+            }
+        }
+    }
+
     private View buildNavigation() {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setGravity(Gravity.CENTER);
-        bar.setPadding(dp(12), dp(8), dp(12), dp(10));
-        bar.setBackgroundColor(resolveSurfaceColor());
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(12), dp(8), dp(12), dp(12));
+
+        GradientDrawable navBg = new GradientDrawable();
+        navBg.setColor(resolveSurfaceColor());
+        navBg.setCornerRadius(dp(28));
+        navBg.setStroke(dp(1), resolveCardStrokeColor());
+        bar.setBackground(navBg);
 
         String[] labels = {"HOME", "SEARCH", "LIBRARY", "CUSTOM"};
+        String[] icons = {"⌂", "⌕", "▣", "⚙"};
 
         for (int i = 0; i < labels.length; i++) {
             final int index = i;
-            TextView item = new TextView(this);
-            item.setText(labels[i]);
-            item.setTextColor(index == 0 ? accent : resolveMutedColor());
-            item.setTextSize(11);
+            boolean selected = i == selectedTabIndex;
+
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
             item.setGravity(Gravity.CENTER);
-            item.setTypeface(null, Typeface.BOLD);
-            item.setPadding(0, dp(12), 0, dp(12));
+            item.setPadding(0, dp(8), 0, dp(8));
+            item.setBackground(selected ? round(accent, 18) : null);
             item.setOnClickListener(v -> {
+                selectedTabIndex = index;
+                updateNavigationSelection();
                 if (index == 0) showHome();
                 if (index == 1) showSearch();
                 if (index == 2) showLibrary();
                 if (index == 3) showCustomise();
             });
 
-            bar.addView(item, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView iconText = textView(icons[i], selected ? Color.WHITE : resolveSecondaryTextColor(), 18f);
+            iconText.setGravity(Gravity.CENTER);
+            iconText.setPadding(0, dp(4), 0, dp(2));
+
+            TextView label = textView(labels[i], selected ? Color.WHITE : resolveSecondaryTextColor(), 10f);
+            label.setTypeface(null, Typeface.BOLD);
+            label.setGravity(Gravity.CENTER);
+
+            item.addView(iconText, new LinearLayout.LayoutParams(-1, -2));
+            item.addView(label, new LinearLayout.LayoutParams(-1, -2));
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, 1f);
+            params.setMargins(dp(4), 0, dp(4), 0);
+            bar.addView(item, params);
         }
 
         return bar;
@@ -241,24 +289,23 @@ public class MainActivity extends Activity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(12), dp(10), dp(10), dp(10));
-        bar.setBackground(round(Color.argb(26, 255, 255, 255), 26));
+        bar.setPadding(dp(12), dp(10), dp(12), dp(10));
         bar.setOnClickListener(v -> startActivity(new Intent(this, PlayerActivity.class)));
 
-        ImageView art = new ImageView(this);
-        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setBackground(round(accent, 14));
-        art.setImageResource(android.R.drawable.ic_media_play);
-        art.setColorFilter(Color.WHITE);
-        art.setPadding(dp(8), dp(8), dp(8), dp(8));
+        GradientDrawable miniBg = new GradientDrawable();
+        miniBg.setColor(resolveSurfaceColor());
+        miniBg.setCornerRadius(dp(24));
+        miniBg.setStroke(dp(1), resolveCardStrokeColor());
+        bar.setBackground(miniBg);
 
-        LinearLayout.LayoutParams artParams = new LinearLayout.LayoutParams(dp(52), dp(52));
-        artParams.setMargins(0, 0, dp(12), 0);
-        bar.addView(art, artParams);
+        TextView art = textView("♫", Color.WHITE, 22f);
+        art.setGravity(Gravity.CENTER);
+        art.setBackground(round(accent, 16));
+        art.setPadding(dp(10), dp(10), dp(10), dp(10));
 
         LinearLayout textBox = new LinearLayout(this);
         textBox.setOrientation(LinearLayout.VERTICAL);
-        textBox.setPadding(0, 0, dp(8), 0);
+        textBox.setPadding(dp(12), 0, dp(10), 0);
 
         nowTitle = textView("Nothing playing", resolvePrimaryTextColor(), 15f);
         nowTitle.setSingleLine(true);
@@ -271,26 +318,24 @@ public class MainActivity extends Activity {
 
         textBox.addView(nowTitle);
         textBox.addView(nowArtist);
-        bar.addView(textBox, new LinearLayout.LayoutParams(0, -2, 1f));
 
         playButton = new Button(this);
         playButton.setText("▶");
-        playButton.setTextColor(resolveBackgroundColor() == Color.rgb(245, 245, 250) ? Color.BLACK : Color.WHITE);
-        playButton.setTextSize(16);
+        playButton.setTextColor(Color.WHITE);
+        playButton.setTextSize(18);
         playButton.setBackground(round(accent, 999));
         playButton.setOnClickListener(v -> togglePlayback());
 
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(42), dp(42));
-        playParams.setMargins(0, 0, dp(8), 0);
-        bar.addView(playButton, playParams);
-
         ImageButton queueButton = new ImageButton(this);
         queueButton.setImageResource(android.R.drawable.ic_menu_sort_by_size);
-        queueButton.setBackground(round(Color.argb(18, 255, 255, 255), 999));
+        queueButton.setBackground(round(Color.argb(22, 255, 255, 255), 999));
         queueButton.setColorFilter(resolvePrimaryTextColor());
         queueButton.setPadding(dp(8), dp(8), dp(8), dp(8));
         queueButton.setOnClickListener(v -> startActivity(new Intent(this, PlayerActivity.class)));
 
+        bar.addView(art, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        bar.addView(textBox, new LinearLayout.LayoutParams(0, -2, 1f));
+        bar.addView(playButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
         bar.addView(queueButton, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
         return bar;
@@ -338,48 +383,52 @@ public class MainActivity extends Activity {
 
     private View featuredCard() {
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.BOTTOM);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(dp(18), dp(18), dp(18), dp(18));
 
         GradientDrawable background = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{accent, Color.rgb(17, 17, 22)}
+                new int[]{accent, Color.rgb(17, 17, 22), Color.rgb(12, 12, 17)}
         );
         background.setCornerRadius(dp(28));
         card.setBackground(background);
 
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(0, 0, dp(18), 0);
+        info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+
         TextView eyebrow = textView("PERSONAL MIX", Color.argb(210, 255, 255, 255), 10f);
         eyebrow.setTypeface(null, Typeface.BOLD);
+        eyebrow.setLetterSpacing(0.18f);
 
         String primaryTitle = songs.isEmpty() ? "Start listening" : "Your evening mix";
         String primarySubtitle = songs.isEmpty()
                 ? "Build your home with your own library."
                 : "A hand-picked mix from your music library.";
 
-        TextView title = textView(primaryTitle, Color.WHITE, 24f);
+        TextView title = textView(primaryTitle, Color.WHITE, 26f);
         title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, dp(8), 0, dp(6));
 
         TextView subtitle = textView(primarySubtitle, Color.argb(205, 255, 255, 255), 13f);
-        subtitle.setPadding(0, dp(4), 0, 0);
 
-        LinearLayout bottom = new LinearLayout(this);
-        bottom.setGravity(Gravity.CENTER_VERTICAL);
-        bottom.setOrientation(LinearLayout.HORIZONTAL);
+        info.addView(eyebrow);
+        info.addView(title);
+        info.addView(subtitle);
 
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(eyebrow);
-        labels.addView(title);
-        labels.addView(subtitle);
-
-        bottom.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView cover = textView(songs.isEmpty() ? "♪" : "V", Color.WHITE, 30f);
+        cover.setGravity(Gravity.CENTER);
+        cover.setBackground(round(Color.argb(35, 255, 255, 255), 22));
+        cover.setPadding(dp(18), dp(18), dp(18), dp(18));
+        cover.setLayoutParams(new LinearLayout.LayoutParams(dp(90), dp(90)));
 
         Button play = new Button(this);
         play.setText("▶");
         play.setTextColor(Color.WHITE);
         play.setTextSize(18);
-        play.setBackground(round(Color.argb(180, 255, 255, 255), 999));
+        play.setBackground(round(Color.argb(175, 255, 255, 255), 999));
         play.setOnClickListener(v -> {
             if (!songs.isEmpty()) {
                 playSong(songs.get(0));
@@ -388,8 +437,14 @@ public class MainActivity extends Activity {
             }
         });
 
-        bottom.addView(play, new LinearLayout.LayoutParams(dp(52), dp(52)));
-        card.addView(bottom);
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.VERTICAL);
+        actions.setGravity(Gravity.CENTER);
+        actions.addView(cover);
+        actions.addView(play, new LinearLayout.LayoutParams(dp(52), dp(52)));
+
+        card.addView(info);
+        card.addView(actions);
         return card;
     }
 
@@ -401,6 +456,8 @@ public class MainActivity extends Activity {
     }
 
     private void showHome() {
+        selectedTabIndex = 0;
+        updateNavigationSelection();
         clearContent();
 
         String greeting = "Good evening";
@@ -420,29 +477,44 @@ public class MainActivity extends Activity {
 
         TextView title = textView("VELORA", resolvePrimaryTextColor(), 30f);
         title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, dp(8));
+        title.setPadding(0, 0, 0, dp(10));
         content.addView(title);
 
         addSectionTitle("Featured");
-        content.addView(featuredCard(), new LinearLayout.LayoutParams(-1, dp(200)));
+        content.addView(featuredCard(), new LinearLayout.LayoutParams(-1, dp(210)));
 
         addSectionTitle("Recently played");
         if (songs.isEmpty()) {
-            content.addView(emptyCard("Your recently played music will appear here."));
+            content.addView(emptyCard("Your recent listens will appear here."));
         } else {
-            HorizontalScrollView scroll = new HorizontalScrollView(this);
-            scroll.setHorizontalScrollBarEnabled(false);
-            scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setPadding(0, 0, 0, dp(8));
-
+            HorizontalScrollView recentScroll = new HorizontalScrollView(this);
+            recentScroll.setHorizontalScrollBarEnabled(false);
+            recentScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout recentRow = new LinearLayout(this);
+            recentRow.setOrientation(LinearLayout.HORIZONTAL);
+            recentRow.setPadding(0, 0, 0, dp(10));
             for (int i = 0; i < Math.min(7, songs.size()); i++) {
-                row.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+                recentRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
             }
+            recentScroll.addView(recentRow);
+            content.addView(recentScroll, new LinearLayout.LayoutParams(-1, -2));
+        }
 
-            scroll.addView(row);
-            content.addView(scroll, new LinearLayout.LayoutParams(-1, -2));
+        addSectionTitle("Albums");
+        if (songs.isEmpty()) {
+            content.addView(emptyCard("Add music to fill your album shelf."));
+        } else {
+            HorizontalScrollView albumScroll = new HorizontalScrollView(this);
+            albumScroll.setHorizontalScrollBarEnabled(false);
+            albumScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout albumRow = new LinearLayout(this);
+            albumRow.setOrientation(LinearLayout.HORIZONTAL);
+            albumRow.setPadding(0, 0, 0, dp(10));
+            for (int i = 0; i < Math.min(6, songs.size()); i++) {
+                albumRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+            }
+            albumScroll.addView(albumRow);
+            content.addView(albumScroll, new LinearLayout.LayoutParams(-1, -2));
         }
 
         addSectionTitle("Quick picks");
@@ -452,7 +524,6 @@ public class MainActivity extends Activity {
         LinearLayout quickRow = new LinearLayout(this);
         quickRow.setOrientation(LinearLayout.HORIZONTAL);
         quickRow.setPadding(0, 0, 0, dp(8));
-
         if (songs.isEmpty()) {
             quickRow.addView(emptyCard("Add tracks to build your quick mix."), new LinearLayout.LayoutParams(-1, -2));
         } else {
@@ -460,7 +531,6 @@ public class MainActivity extends Activity {
                 quickRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
             }
         }
-
         quickScroll.addView(quickRow);
         content.addView(quickScroll, new LinearLayout.LayoutParams(-1, -2));
     }
@@ -470,20 +540,22 @@ public class MainActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(10), dp(10), dp(10), dp(10));
         card.setBackground(round(resolveSurfaceColor(), 20));
+        card.setBackgroundDrawable(round(resolveSurfaceColor(), 20));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(170), -2);
         params.setMargins(0, 0, dp(12), 0);
         card.setLayoutParams(params);
 
-        TextView art = textView("♫", Color.WHITE, 24f);
+        TextView art = textView(song.title.substring(0, 1).toUpperCase(Locale.US), Color.WHITE, 24f);
         art.setGravity(Gravity.CENTER);
-        art.setBackground(round(strongAccent ? accent : Color.argb(160, 255, 255, 255), 18));
-        art.setPadding(dp(10), dp(10), dp(10), dp(10));
+        art.setBackground(round(strongAccent ? accent : Color.argb(165, 255, 255, 255), 18));
+        art.setPadding(dp(12), dp(12), dp(12), dp(12));
         art.setLayoutParams(new LinearLayout.LayoutParams(dp(150), dp(150)));
 
         TextView title = textView(song.title, resolvePrimaryTextColor(), 14f);
         title.setTypeface(null, Typeface.BOLD);
         title.setSingleLine(true);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setPadding(0, dp(8), 0, dp(2));
 
         TextView artist = textView(song.artist, resolveSecondaryTextColor(), 12f);
         artist.setSingleLine(true);
@@ -497,13 +569,15 @@ public class MainActivity extends Activity {
     }
 
     private void showSearch() {
+        selectedTabIndex = 1;
+        updateNavigationSelection();
         clearContent();
-        heading("Search", "Find music in your library.");
+        heading("Search", "Browse your library and recent picks.");
 
         LinearLayout searchWrap = new LinearLayout(this);
         searchWrap.setOrientation(LinearLayout.HORIZONTAL);
         searchWrap.setBackground(round(resolveSurfaceColor(), 18));
-        searchWrap.setPadding(dp(12), dp(4), dp(8), dp(4));
+        searchWrap.setPadding(dp(14), dp(8), dp(10), dp(8));
 
         final EditText search = new EditText(this);
         search.setHint("Song, artist, album...");
@@ -511,7 +585,7 @@ public class MainActivity extends Activity {
         search.setTextColor(resolvePrimaryTextColor());
         search.setHintTextColor(resolveSecondaryTextColor());
         search.setBackgroundColor(Color.TRANSPARENT);
-        search.setPadding(dp(10), dp(8), dp(10), dp(8));
+        search.setPadding(dp(10), dp(10), dp(10), dp(10));
 
         Button clear = new Button(this);
         clear.setText("Clear");
@@ -523,10 +597,15 @@ public class MainActivity extends Activity {
         searchWrap.addView(clear, new LinearLayout.LayoutParams(-2, -2));
         content.addView(searchWrap, new LinearLayout.LayoutParams(-1, -2));
 
+        TextView suggHeader = textView("Suggestions", resolveSecondaryTextColor(), 12f);
+        suggHeader.setTypeface(null, Typeface.BOLD);
+        suggHeader.setPadding(0, dp(18), 0, dp(10));
+        content.addView(suggHeader);
+
         LinearLayout chips = new LinearLayout(this);
         chips.setOrientation(LinearLayout.HORIZONTAL);
-        chips.setPadding(0, dp(12), 0, dp(12));
-        String[] chipLabels = {"All", "Songs", "Albums", "Artists", "Playlists"};
+        chips.setPadding(0, 0, 0, dp(10));
+        String[] chipLabels = {"All", "Trending", "Favorites", "Night drive", "Acoustic"};
         for (final String chip : chipLabels) {
             TextView item = textView(chip, resolvePrimaryTextColor(), 12f);
             item.setBackground(round(resolveSurfaceColor(), 999));
@@ -549,9 +628,36 @@ public class MainActivity extends Activity {
     }
 
     private void showLibrary() {
+        selectedTabIndex = 2;
+        updateNavigationSelection();
         clearContent();
 
         heading("Library", "Local + licensed online music.");
+
+        LinearLayout statRow = new LinearLayout(this);
+        statRow.setOrientation(LinearLayout.HORIZONTAL);
+        statRow.setPadding(0, dp(4), 0, dp(12));
+
+        String[] labels = {"Tracks", "Artists", "Playlists"};
+        int[] values = {Math.max(1, songs.size()), Math.max(1, Math.min(12, songs.size())), 4};
+
+        for (int i = 0; i < labels.length; i++) {
+            LinearLayout stat = new LinearLayout(this);
+            stat.setOrientation(LinearLayout.VERTICAL);
+            stat.setBackground(round(resolveSurfaceColor(), 18));
+            stat.setPadding(dp(14), dp(12), dp(14), dp(12));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, 1f);
+            params.setMargins(i == 0 ? 0 : dp(8), 0, 0, 0);
+
+            TextView value = textView(String.valueOf(values[i]), resolvePrimaryTextColor(), 18f);
+            value.setTypeface(null, Typeface.BOLD);
+            TextView label = textView(labels[i], resolveSecondaryTextColor(), 11f);
+
+            stat.addView(value);
+            stat.addView(label);
+            statRow.addView(stat, params);
+        }
+        content.addView(statRow);
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
@@ -696,8 +802,10 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomise() {
+        selectedTabIndex = 3;
+        updateNavigationSelection();
         clearContent();
-        heading("Customise", "Make Velora feel like yours.");
+        heading("Customise", "Tune the app to your listening mood.");
 
         addSectionTitle("Appearance");
         LinearLayout themeCard = new LinearLayout(this);
@@ -752,7 +860,7 @@ public class MainActivity extends Activity {
         content.addView(accentWrap);
 
         addSectionTitle("Playback");
-        TextView playback = textView("Modern player interactions, swipe artwork navigation, and quality badges remain active in the main player screen.", resolveSecondaryTextColor(), 13f);
+        TextView playback = textView("Modern player interactions, artwork navigation, and premium dark surfaces remain active in the player screen.", resolveSecondaryTextColor(), 13f);
         playback.setPadding(0, 0, 0, dp(12));
         content.addView(playback);
 
