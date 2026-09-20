@@ -54,6 +54,9 @@ public class MainActivity extends Activity {
     private Song currentSong;
 
     private MediaController controller;
+    private View miniPlayerView;
+    private ImageView miniPlayerArtwork;
+    private TextView miniPlayerFallback;
     private TextView nowTitle;
     private TextView nowArtist;
     private Button playButton;
@@ -207,7 +210,8 @@ public class MainActivity extends Activity {
         scroll.addView(content);
 
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
-        root.addView(buildMiniPlayer());
+        miniPlayerView = buildMiniPlayer();
+        root.addView(miniPlayerView);
         navigationView = buildNavigation();
         root.addView(navigationView);
 
@@ -298,6 +302,7 @@ public class MainActivity extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(12), dp(10), dp(12), dp(10));
         bar.setOnClickListener(v -> startActivity(new Intent(this, PlayerActivity.class)));
+        bar.setVisibility(View.GONE);
 
         GradientDrawable miniBg = new GradientDrawable();
         miniBg.setColor(resolveSurfaceColor());
@@ -309,25 +314,16 @@ public class MainActivity extends Activity {
         artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(52), dp(52)));
         artWrap.setBackground(round(accent, 18));
 
-        ImageView art = new ImageView(this);
-        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
-        Bitmap artBitmap = loadArtworkBitmap(currentSong != null ? currentSong.albumArtUri : null, dp(52));
-        if (artBitmap != null) {
-            art.setImageBitmap(artBitmap);
-        } else {
-            TextView artFallback = textView(
-                    currentSong != null && currentSong.title != null && !currentSong.title.isEmpty()
-                            ? String.valueOf(currentSong.title.charAt(0)).toUpperCase(Locale.US)
-                            : "V",
-                    Color.WHITE,
-                    18f
-            );
-            artFallback.setGravity(Gravity.CENTER);
-            artFallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
-            artWrap.addView(artFallback);
-        }
-        artWrap.addView(art);
+        miniPlayerArtwork = new ImageView(this);
+        miniPlayerArtwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        miniPlayerArtwork.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+
+        miniPlayerFallback = textView("V", Color.WHITE, 18f);
+        miniPlayerFallback.setGravity(Gravity.CENTER);
+        miniPlayerFallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+
+        artWrap.addView(miniPlayerArtwork);
+        artWrap.addView(miniPlayerFallback);
 
         LinearLayout textBox = new LinearLayout(this);
         textBox.setOrientation(LinearLayout.VERTICAL);
@@ -369,6 +365,7 @@ public class MainActivity extends Activity {
         bar.addView(playButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
         bar.addView(queueButton, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
+        updateNowPlayingUi();
         return bar;
     }
 
@@ -501,19 +498,20 @@ public class MainActivity extends Activity {
             greeting = "Good afternoon";
         }
 
-        TextView welcome = textView(greeting, resolveSecondaryTextColor(), 13f);
+        TextView welcome = textView(greeting, resolveSecondaryTextColor(), 12f);
         welcome.setTypeface(null, Typeface.BOLD);
-        welcome.setPadding(0, dp(4), 0, 0);
+        welcome.setLetterSpacing(0.08f);
+        welcome.setPadding(0, dp(6), 0, dp(4));
         content.addView(welcome);
 
         TextView title = textView("VELORA", resolvePrimaryTextColor(), 30f);
         title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, dp(8));
+        title.setPadding(0, 0, 0, dp(10));
         content.addView(title);
 
         LinearLayout moodBar = new LinearLayout(this);
         moodBar.setOrientation(LinearLayout.HORIZONTAL);
-        moodBar.setPadding(0, 0, 0, dp(14));
+        moodBar.setPadding(0, 0, 0, dp(18));
         String[] moodLabels = {"Chill", "Focus", "Drive", "Night"};
         for (String mood : moodLabels) {
             TextView moodChip = textView(mood, resolvePrimaryTextColor(), 11f);
@@ -525,80 +523,104 @@ public class MainActivity extends Activity {
         }
         content.addView(moodBar);
 
-        LinearLayout heroWrap = new LinearLayout(this);
-        heroWrap.setOrientation(LinearLayout.VERTICAL);
-        heroWrap.setPadding(0, 0, 0, dp(4));
-
-        LinearLayout heroCard = new LinearLayout(this);
-        heroCard.setOrientation(LinearLayout.HORIZONTAL);
-        heroCard.setGravity(Gravity.CENTER_VERTICAL);
-        heroCard.setPadding(dp(18), dp(18), dp(18), dp(18));
-
-        GradientDrawable heroBg = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                new int[]{accent, Color.rgb(19, 19, 28), Color.rgb(8, 8, 12)}
-        );
-        heroBg.setCornerRadius(dp(28));
-        heroCard.setBackground(heroBg);
-
-        LinearLayout info = new LinearLayout(this);
-        info.setOrientation(LinearLayout.VERTICAL);
-        info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
-        info.setPadding(0, 0, dp(18), 0);
-
-        TextView heroEyebrow = textView("CONTINUE LISTENING", Color.argb(220, 255, 255, 255), 10f);
-        heroEyebrow.setTypeface(null, Typeface.BOLD);
-        heroEyebrow.setLetterSpacing(0.18f);
-
         Song activeSong = getCurrentSongFromPlayer();
-        String heroTitleText = activeSong != null ? activeSong.title : (songs.isEmpty() ? "Start listening" : songs.get(0).title);
-        String heroSubtitleText = activeSong != null ? activeSong.artist : (songs.isEmpty() ? "Build your home with your own library." : "Your latest library pick");
+        if (activeSong != null || !songs.isEmpty()) {
+            Song heroSong = activeSong != null ? activeSong : songs.get(0);
+            FrameLayout heroCard = new FrameLayout(this);
+            heroCard.setPadding(0, 0, 0, dp(18));
+            heroCard.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
-        TextView heroTitle = textView(heroTitleText, Color.WHITE, 26f);
-        heroTitle.setTypeface(null, Typeface.BOLD);
-        heroTitle.setPadding(0, dp(8), 0, dp(6));
-        heroTitle.setSingleLine(true);
-        heroTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            Bitmap heroArt = loadArtworkBitmap(heroSong.albumArtUri, dp(220));
+            int gradientBase = heroArt != null ? extractProminentColor(heroArt) : accent;
+            int darkBase = Color.argb(255, Math.max(10, Color.red(gradientBase) / 3), Math.max(10, Color.green(gradientBase) / 3), Math.max(18, Color.blue(gradientBase) / 3));
 
-        TextView heroSubtitle = textView(heroSubtitleText, Color.argb(205, 255, 255, 255), 13f);
-        heroSubtitle.setSingleLine(true);
-        heroSubtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            GradientDrawable heroBackground = new GradientDrawable(
+                    GradientDrawable.Orientation.LEFT_RIGHT,
+                    new int[]{
+                            Color.argb(230, Color.red(gradientBase), Color.green(gradientBase), Color.blue(gradientBase)),
+                            Color.argb(205, 18, 18, 24),
+                            Color.argb(240, 9, 9, 12)
+                    }
+            );
+            heroBackground.setCornerRadius(dp(30));
+            heroCard.setBackground(heroBackground);
 
-        info.addView(heroEyebrow);
-        info.addView(heroTitle);
-        info.addView(heroSubtitle);
-
-        TextView cover = textView(activeSong != null ? activeSong.title.substring(0, 1).toUpperCase(Locale.US) : (songs.isEmpty() ? "♪" : "V"), Color.WHITE, 30f);
-        cover.setGravity(Gravity.CENTER);
-        cover.setBackground(round(Color.argb(35, 255, 255, 255), 22));
-        cover.setPadding(dp(18), dp(18), dp(18), dp(18));
-        cover.setLayoutParams(new LinearLayout.LayoutParams(dp(96), dp(96)));
-
-        Button heroPlay = new Button(this);
-        heroPlay.setText(controller != null && controller.isPlaying() ? "Ⅱ" : "▶");
-        heroPlay.setTextColor(Color.WHITE);
-        heroPlay.setTextSize(18);
-        heroPlay.setBackground(round(Color.argb(175, 255, 255, 255), 999));
-        heroPlay.setOnClickListener(v -> {
-            if (activeSong != null) {
-                playSong(activeSong);
-            } else if (!songs.isEmpty()) {
-                playSong(songs.get(0));
-            } else {
-                showLibrary();
+            ImageView heroImage = new ImageView(this);
+            heroImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            heroImage.setAlpha(0.24f);
+            heroImage.setLayoutParams(new FrameLayout.LayoutParams(-1, dp(200)));
+            if (heroArt != null) {
+                heroImage.setImageBitmap(heroArt);
             }
-        });
+            heroCard.addView(heroImage);
 
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.VERTICAL);
-        actions.setGravity(Gravity.CENTER);
-        actions.addView(cover);
-        actions.addView(heroPlay, new LinearLayout.LayoutParams(dp(52), dp(52)));
+            LinearLayout contentWrap = new LinearLayout(this);
+            contentWrap.setOrientation(LinearLayout.HORIZONTAL);
+            contentWrap.setGravity(Gravity.CENTER_VERTICAL);
+            contentWrap.setPadding(dp(18), dp(18), dp(18), dp(18));
+            contentWrap.setLayoutParams(new FrameLayout.LayoutParams(-1, dp(200)));
 
-        heroCard.addView(info);
-        heroCard.addView(actions);
-        heroWrap.addView(heroCard, new LinearLayout.LayoutParams(-1, dp(180)));
-        content.addView(heroWrap);
+            LinearLayout info = new LinearLayout(this);
+            info.setOrientation(LinearLayout.VERTICAL);
+            info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+            info.setPadding(0, dp(8), dp(16), 0);
+
+            TextView heroEyebrow = textView("CONTINUE LISTENING", Color.argb(220, 255, 255, 255), 10f);
+            heroEyebrow.setTypeface(null, Typeface.BOLD);
+            heroEyebrow.setLetterSpacing(0.14f);
+
+            TextView heroTitle = textView(heroSong.title, Color.WHITE, 25f);
+            heroTitle.setTypeface(null, Typeface.BOLD);
+            heroTitle.setSingleLine(true);
+            heroTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            heroTitle.setPadding(0, dp(8), 0, dp(6));
+
+            TextView heroSubtitle = textView(heroSong.artist, Color.argb(205, 255, 255, 255), 13f);
+            heroSubtitle.setSingleLine(true);
+            heroSubtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+            info.addView(heroEyebrow);
+            info.addView(heroTitle);
+            info.addView(heroSubtitle);
+
+            LinearLayout actions = new LinearLayout(this);
+            actions.setOrientation(LinearLayout.VERTICAL);
+            actions.setGravity(Gravity.CENTER);
+
+            FrameLayout artWrap = new FrameLayout(this);
+            artWrap.setBackground(round(Color.argb(30, 255, 255, 255), 22));
+            artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(84), dp(84)));
+
+            ImageView heroThumb = new ImageView(this);
+            heroThumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            heroThumb.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+            if (heroArt != null) {
+                heroThumb.setImageBitmap(heroArt);
+            } else {
+                TextView fallback = textView(String.valueOf(heroSong.title.charAt(0)).toUpperCase(Locale.US), Color.WHITE, 26f);
+                fallback.setGravity(Gravity.CENTER);
+                fallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+                artWrap.addView(fallback);
+            }
+            artWrap.addView(heroThumb);
+
+            Button heroPlay = new Button(this);
+            heroPlay.setText(controller != null && controller.isPlaying() ? "Ⅱ" : "▶");
+            heroPlay.setTextColor(Color.WHITE);
+            heroPlay.setTextSize(18);
+            heroPlay.setBackground(round(Color.argb(200, 255, 255, 255), 999));
+            heroPlay.setOnClickListener(v -> playSong(heroSong));
+            LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(52), dp(52));
+            playParams.setMargins(0, dp(12), 0, 0);
+
+            actions.addView(artWrap, new LinearLayout.LayoutParams(dp(84), dp(84)));
+            actions.addView(heroPlay, playParams);
+
+            contentWrap.addView(info);
+            contentWrap.addView(actions);
+            heroCard.addView(contentWrap);
+            content.addView(heroCard);
+        }
 
         if (!recentlyPlayed.isEmpty()) {
             addSectionTitle("Recently played");
@@ -607,67 +629,53 @@ public class MainActivity extends Activity {
             recentScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
             LinearLayout recentRow = new LinearLayout(this);
             recentRow.setOrientation(LinearLayout.HORIZONTAL);
-            recentRow.setPadding(0, 0, 0, dp(10));
-            for (int i = 0; i < Math.min(7, recentlyPlayed.size()); i++) {
+            recentRow.setPadding(0, 0, 0, dp(12));
+            for (int i = 0; i < Math.min(8, recentlyPlayed.size()); i++) {
                 recentRow.addView(buildMediaCard(recentlyPlayed.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
             }
             recentScroll.addView(recentRow);
             content.addView(recentScroll, new LinearLayout.LayoutParams(-1, -2));
         }
 
-        LinearLayout insightRow = new LinearLayout(this);
-        insightRow.setOrientation(LinearLayout.HORIZONTAL);
-        insightRow.setPadding(0, dp(10), 0, dp(4));
+        if (songs.size() > 0) {
+            addSectionTitle("Recently added");
+            HorizontalScrollView addedScroll = new HorizontalScrollView(this);
+            addedScroll.setHorizontalScrollBarEnabled(false);
+            addedScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout addedRow = new LinearLayout(this);
+            addedRow.setOrientation(LinearLayout.HORIZONTAL);
+            addedRow.setPadding(0, 0, 0, dp(12));
+            for (int i = 0; i < Math.min(6, songs.size()); i++) {
+                addedRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+            }
+            addedScroll.addView(addedRow);
+            content.addView(addedScroll, new LinearLayout.LayoutParams(-1, -2));
 
-        String[] insightTitles = {"Tracks", "Recent", "Artists"};
-        String[] insightValues = {
-                String.valueOf(Math.max(0, songs.size())),
-                String.valueOf(Math.min(8, Math.max(0, recentlyPlayed.size()))),
-                String.valueOf(Math.max(1, Math.min(12, songs.size())))
-        };
-        for (int i = 0; i < insightTitles.length; i++) {
-            LinearLayout insightCard = new LinearLayout(this);
-            insightCard.setOrientation(LinearLayout.VERTICAL);
-            insightCard.setBackground(round(resolveSurfaceColor(), 18));
-            insightCard.setPadding(dp(14), dp(12), dp(14), dp(12));
-            LinearLayout.LayoutParams insightParams = new LinearLayout.LayoutParams(0, -2, 1f);
-            insightParams.setMargins(i == 0 ? 0 : dp(8), 0, 0, 0);
-
-            TextView insightValue = textView(insightValues[i], resolvePrimaryTextColor(), 17f);
-            insightValue.setTypeface(null, Typeface.BOLD);
-            TextView insightLabel = textView(insightTitles[i], resolveSecondaryTextColor(), 11f);
-            insightCard.addView(insightValue);
-            insightCard.addView(insightLabel);
-            insightRow.addView(insightCard, insightParams);
-        }
-        content.addView(insightRow);
-
-        if (!songs.isEmpty()) {
             addSectionTitle("Albums");
             HorizontalScrollView albumScroll = new HorizontalScrollView(this);
             albumScroll.setHorizontalScrollBarEnabled(false);
             albumScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
             LinearLayout albumRow = new LinearLayout(this);
             albumRow.setOrientation(LinearLayout.HORIZONTAL);
-            albumRow.setPadding(0, 0, 0, dp(10));
+            albumRow.setPadding(0, 0, 0, dp(12));
             for (int i = 0; i < Math.min(6, songs.size()); i++) {
                 albumRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
             }
             albumScroll.addView(albumRow);
             content.addView(albumScroll, new LinearLayout.LayoutParams(-1, -2));
 
-            addSectionTitle("Quick picks");
-            HorizontalScrollView quickScroll = new HorizontalScrollView(this);
-            quickScroll.setHorizontalScrollBarEnabled(false);
-            quickScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            LinearLayout quickRow = new LinearLayout(this);
-            quickRow.setOrientation(LinearLayout.HORIZONTAL);
-            quickRow.setPadding(0, 0, 0, dp(8));
-            for (int i = 0; i < Math.min(5, songs.size()); i++) {
-                quickRow.addView(buildMediaCard(songs.get(i), i % 2 == 0), new LinearLayout.LayoutParams(dp(170), -2));
+            addSectionTitle("Artists");
+            HorizontalScrollView artistScroll = new HorizontalScrollView(this);
+            artistScroll.setHorizontalScrollBarEnabled(false);
+            artistScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout artistRow = new LinearLayout(this);
+            artistRow.setOrientation(LinearLayout.HORIZONTAL);
+            artistRow.setPadding(0, 0, 0, dp(12));
+            for (int i = 0; i < Math.min(6, songs.size()); i++) {
+                artistRow.addView(buildArtistCard(songs.get(i)), new LinearLayout.LayoutParams(dp(140), -2));
             }
-            quickScroll.addView(quickRow);
-            content.addView(quickScroll, new LinearLayout.LayoutParams(-1, -2));
+            artistScroll.addView(artistRow);
+            content.addView(artistScroll, new LinearLayout.LayoutParams(-1, -2));
         }
     }
 
@@ -686,6 +694,7 @@ public class MainActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(10), dp(10), dp(10), dp(10));
         card.setBackground(round(resolveSurfaceColor(), 20));
+        card.setElevation(dp(2));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(170), -2);
         params.setMargins(0, 0, dp(12), 0);
         card.setLayoutParams(params);
@@ -728,6 +737,40 @@ public class MainActivity extends Activity {
         card.addView(artWrap);
         card.addView(title);
         card.addView(artist);
+        card.setOnClickListener(v -> playSong(song));
+        return card;
+    }
+
+    private View buildArtistCard(Song song) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(10), dp(10), dp(10), dp(10));
+        card.setBackground(round(resolveSurfaceColor(), 20));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(140), -2);
+        params.setMargins(0, 0, dp(10), 0);
+        card.setLayoutParams(params);
+
+        FrameLayout avatar = new FrameLayout(this);
+        avatar.setLayoutParams(new LinearLayout.LayoutParams(dp(120), dp(120)));
+        avatar.setBackground(round(accent, 18));
+
+        TextView initial = textView(
+                song.artist != null && !song.artist.isEmpty() ? String.valueOf(song.artist.charAt(0)).toUpperCase(Locale.US) : "V",
+                Color.WHITE,
+                26f
+        );
+        initial.setGravity(Gravity.CENTER);
+        initial.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        avatar.addView(initial);
+
+        TextView name = textView(song.artist, resolvePrimaryTextColor(), 13f);
+        name.setTypeface(null, Typeface.BOLD);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        name.setPadding(0, dp(8), 0, 0);
+
+        card.addView(avatar);
+        card.addView(name);
         card.setOnClickListener(v -> playSong(song));
         return card;
     }
@@ -1212,6 +1255,44 @@ public class MainActivity extends Activity {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
+    private int extractProminentColor(Bitmap bitmap) {
+        if (bitmap == null) {
+            return accent;
+        }
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int sampleX = Math.max(1, width / 12);
+        int sampleY = Math.max(1, height / 12);
+        long r = 0;
+        long g = 0;
+        long b = 0;
+        int count = 0;
+
+        for (int y = 0; y < height; y += sampleY) {
+            for (int x = 0; x < width; x += sampleX) {
+                int pixel = bitmap.getPixel(x, y);
+                r += Color.red(pixel);
+                g += Color.green(pixel);
+                b += Color.blue(pixel);
+                count++;
+            }
+        }
+
+        if (count == 0) {
+            return accent;
+        }
+
+        int avgR = (int) (r / count);
+        int avgG = (int) (g / count);
+        int avgB = (int) (b / count);
+        return Color.rgb(clamp(avgR + 16, 20, 255), clamp(avgG + 12, 20, 255), clamp(avgB + 18, 20, 255));
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     private void addStream() {
         final EditText url = new EditText(this);
         url.setHint("https://example.com/audio.mp3");
@@ -1288,15 +1369,18 @@ public class MainActivity extends Activity {
         }
 
         currentSong = song;
+        MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder()
+                .setTitle(song.title)
+                .setArtist(song.artist);
+
+        if (song.albumArtUri != null && !song.albumArtUri.trim().isEmpty()) {
+            metadataBuilder.setArtworkUri(Uri.parse(song.albumArtUri));
+        }
+
         MediaItem item =
                 new MediaItem.Builder()
                         .setUri(Uri.parse(song.uri))
-                        .setMediaMetadata(
-                                new MediaMetadata.Builder()
-                                        .setTitle(song.title)
-                                        .setArtist(song.artist)
-                                        .build()
-                        )
+                        .setMediaMetadata(metadataBuilder.build())
                         .build();
 
         controller.setMediaItem(item);
@@ -1381,8 +1465,12 @@ public class MainActivity extends Activity {
                                                 item.localConfiguration != null && item.localConfiguration.uri != null
                                                         ? item.localConfiguration.uri.toString()
                                                         : "",
-                                                false
+                                                false,
+                                                item.mediaMetadata.artworkUri != null
+                                                        ? item.mediaMetadata.artworkUri.toString()
+                                                        : null
                                         );
+                                        currentSong = itemSong;
                                         recordRecentSong(itemSong);
                                         updateNowPlayingUi();
                                         if (selectedTabIndex == 0) {
@@ -1586,9 +1674,15 @@ public class MainActivity extends Activity {
     }
 
     private void updateNowPlayingUi() {
+        Song current = getCurrentSongFromPlayer();
+        boolean hasActiveTrack = current != null && controller != null && controller.getCurrentMediaItem() != null;
+
+        if (miniPlayerView != null) {
+            miniPlayerView.setVisibility(hasActiveTrack ? View.VISIBLE : View.GONE);
+        }
+
         if (nowTitle != null) {
-            Song current = getCurrentSongFromPlayer();
-            if (current != null) {
+            if (hasActiveTrack) {
                 currentSong = current;
                 nowTitle.setText(current.title);
                 nowArtist.setText(current.artist);
@@ -1600,6 +1694,36 @@ public class MainActivity extends Activity {
 
         if (playButton != null) {
             playButton.setText(controller != null && controller.isPlaying() ? "Ⅱ" : "▶");
+        }
+
+        if (miniPlayerArtwork != null) {
+            Bitmap artBitmap = null;
+            if (current != null && current.albumArtUri != null && !current.albumArtUri.isEmpty()) {
+                artBitmap = loadArtworkBitmap(current.albumArtUri, dp(52));
+            }
+            if (artBitmap == null && controller != null && controller.getCurrentMediaItem() != null) {
+                MediaMetadata metadata = controller.getCurrentMediaItem().mediaMetadata;
+                if (metadata != null && metadata.artworkUri != null) {
+                    artBitmap = loadArtworkBitmap(metadata.artworkUri.toString(), dp(52));
+                }
+            }
+            if (artBitmap != null) {
+                miniPlayerArtwork.setImageBitmap(artBitmap);
+                miniPlayerArtwork.setVisibility(View.VISIBLE);
+                if (miniPlayerFallback != null) {
+                    miniPlayerFallback.setVisibility(View.GONE);
+                }
+            } else {
+                miniPlayerArtwork.setImageDrawable(null);
+                miniPlayerArtwork.setVisibility(View.GONE);
+                if (miniPlayerFallback != null) {
+                    miniPlayerFallback.setVisibility(View.VISIBLE);
+                    char fallbackLetter = (current != null && current.title != null && !current.title.trim().isEmpty())
+                            ? Character.toUpperCase(current.title.charAt(0))
+                            : 'V';
+                    miniPlayerFallback.setText(String.valueOf(fallbackLetter));
+                }
+            }
         }
     }
 
