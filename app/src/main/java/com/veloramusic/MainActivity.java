@@ -1522,19 +1522,54 @@ public class MainActivity extends Activity {
         aboutCard.setBackground(round(resolveSurfaceColor(), 22));
         aboutCard.setPadding(dp(16), dp(14), dp(16), dp(14));
 
-        TextView veloraBrand = textView("VELORA MUSIC", resolvePrimaryTextColor(), 22f);
+        TextView veloraBrand = textView("VELORA", resolvePrimaryTextColor(), 22f);
         veloraBrand.setTypeface(null, Typeface.BOLD);
-        veloraBrand.setPadding(0, 0, 0, dp(8));
+        veloraBrand.setPadding(0, 0, 0, dp(2));
 
-        TextView author = textView("Created by Akshat Mishra", resolveSecondaryTextColor(), 13f);
-        author.setPadding(0, 0, 0, dp(4));
+        TextView appName = textView("Velora Music", resolveSecondaryTextColor(), 15f);
+        appName.setPadding(0, 0, 0, dp(10));
 
-        TextView version = textView("Version 1.0.0", resolveSecondaryTextColor(), 13f);
-        version.setPadding(0, 0, 0, dp(14));
+        TextView developer = textView("Developer: Akshat Mishra", resolveSecondaryTextColor(), 13f);
+        developer.setPadding(0, 0, 0, dp(4));
+
+        TextView version = textView("Version: 1.0.0", resolveSecondaryTextColor(), 13f);
+        version.setPadding(0, 0, 0, dp(18));
+
+        TextView openSourceTitle = textView("Open Source", resolvePrimaryTextColor(), 14f);
+        openSourceTitle.setTypeface(null, Typeface.BOLD);
+        openSourceTitle.setPadding(0, 0, 0, dp(6));
+
+        TextView openSourceDescription = textView("Velora Music is an open-source Android music player.", resolveSecondaryTextColor(), 13f);
+        openSourceDescription.setPadding(0, 0, 0, dp(12));
+
+        Button githubButton = new Button(this);
+        githubButton.setText("Contribute on GitHub");
+        githubButton.setTextColor(Color.WHITE);
+        githubButton.setAllCaps(false);
+        githubButton.setBackground(round(accent, 16));
+        githubButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/akshatmishraa102/velora-music-new"));
+            startActivity(intent);
+        });
+
+        Button instagramButton = new Button(this);
+        instagramButton.setText("Instagram · Akshat Mishra");
+        instagramButton.setTextColor(resolvePrimaryTextColor());
+        instagramButton.setAllCaps(false);
+        instagramButton.setBackground(round(resolveBackgroundColor(), 16));
+        instagramButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/akshat.mishra102?igsi=a3l3ajF0dnRpcWRz"));
+            startActivity(intent);
+        });
 
         aboutCard.addView(veloraBrand);
-        aboutCard.addView(author);
+        aboutCard.addView(appName);
+        aboutCard.addView(developer);
         aboutCard.addView(version);
+        aboutCard.addView(openSourceTitle);
+        aboutCard.addView(openSourceDescription);
+        aboutCard.addView(githubButton);
+        aboutCard.addView(instagramButton);
         content.addView(aboutCard);
     }
 
