@@ -43,9 +43,9 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private static final int AUDIO_PERMISSION = 20;
-    private static final String PREF_NAME = "velora_ui";
-    private static final String KEY_ACCENT = "accent";
-    private static final String KEY_THEME = "theme";
+    private static final String PREF_NAME = VeloraThemeManager.PREF_NAME;
+    private static final String KEY_ACCENT = VeloraThemeManager.KEY_ACCENT;
+    private static final String KEY_THEME = VeloraThemeManager.KEY_THEME;
 
     private final List<Song> songs = new ArrayList<>();
     private final List<Song> recentlyPlayed = new ArrayList<>();
@@ -59,6 +59,7 @@ public class MainActivity extends Activity {
     private int selectedTabIndex = 0;
     private SharedPreferences preferences;
     private String currentTheme = "dark";
+    private boolean pureBlack = false;
     private int searchResultsIndex = 0;
     private int libraryResultsIndex = 0;
 
@@ -88,14 +89,19 @@ public class MainActivity extends Activity {
 
     private void loadPreferences() {
         accent = preferences.getInt(KEY_ACCENT, accent);
-        currentTheme = preferences.getString(KEY_THEME, currentTheme);
+        currentTheme = VeloraThemeManager.normalizeTheme(preferences.getString(KEY_THEME, currentTheme));
+        pureBlack = preferences.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
     }
 
     private void savePreferences() {
         if (preferences == null) {
             preferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         }
-        preferences.edit().putInt(KEY_ACCENT, accent).putString(KEY_THEME, currentTheme).apply();
+        preferences.edit()
+                .putInt(KEY_ACCENT, accent)
+                .putString(KEY_THEME, currentTheme)
+                .putBoolean(VeloraThemeManager.KEY_PURE_BLACK, pureBlack)
+                .apply();
     }
 
     private boolean isSystemNightMode() {
@@ -108,64 +114,23 @@ public class MainActivity extends Activity {
     }
 
     private int resolveBackgroundColor() {
-        switch (currentTheme) {
-            case "amoled":
-                return Color.rgb(0, 0, 0);
-            case "light":
-                return Color.rgb(245, 245, 250);
-            case "auto":
-                return isSystemNightMode() ? Color.rgb(9, 10, 14) : Color.rgb(245, 245, 250);
-            case "dark":
-            default:
-                return Color.rgb(9, 10, 14);
-        }
+        return VeloraThemeManager.resolveBackgroundColor(currentTheme, pureBlack, isSystemNightMode());
     }
 
     private int resolveSurfaceColor() {
-        switch (currentTheme) {
-            case "amoled":
-                return Color.rgb(13, 13, 15);
-            case "light":
-                return Color.rgb(255, 255, 255);
-            case "auto":
-                return isSystemNightMode() ? Color.rgb(18, 18, 25) : Color.rgb(255, 255, 255);
-            case "dark":
-            default:
-                return Color.rgb(18, 18, 25);
-        }
+        return VeloraThemeManager.resolveSurfaceColor(currentTheme, pureBlack, isSystemNightMode());
     }
 
     private int resolveMutedColor() {
-        switch (currentTheme) {
-            case "light":
-                return Color.rgb(102, 108, 126);
-            case "amoled":
-            case "dark":
-            default:
-                return Color.rgb(157, 161, 176);
-            case "auto":
-                return isSystemNightMode() ? Color.rgb(157, 161, 176) : Color.rgb(102, 108, 126);
-        }
+        return VeloraThemeManager.resolveSecondaryTextColor(currentTheme, isSystemNightMode());
     }
 
     private int resolvePrimaryTextColor() {
-        if (currentTheme.equals("light")) {
-            return Color.rgb(17, 21, 30);
-        }
-        if (currentTheme.equals("auto")) {
-            return isSystemNightMode() ? Color.rgb(245, 245, 247) : Color.rgb(17, 21, 30);
-        }
-        return Color.rgb(245, 245, 247);
+        return VeloraThemeManager.resolvePrimaryTextColor(currentTheme, isSystemNightMode());
     }
 
     private int resolveSecondaryTextColor() {
-        if (currentTheme.equals("light")) {
-            return Color.rgb(90, 97, 114);
-        }
-        if (currentTheme.equals("auto")) {
-            return isSystemNightMode() ? Color.rgb(172, 176, 186) : Color.rgb(90, 97, 114);
-        }
-        return Color.rgb(172, 176, 186);
+        return VeloraThemeManager.resolveSecondaryTextColor(currentTheme, isSystemNightMode());
     }
 
     private int resolveCardStrokeColor() {
@@ -205,6 +170,15 @@ public class MainActivity extends Activity {
 
         featuredPlayButton = getResources().getDimensionPixelSize(
                 R.dimen.velora_card_featured_play_button);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadPreferences();
+        if (content != null) {
+            buildUi();
+        }
     }
 
     private void buildUi() {
@@ -671,6 +645,16 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void addSettingsButton(LinearLayout container, String label, View.OnClickListener listener) {
+        TextView action = textView(label, resolvePrimaryTextColor(), 14f);
+        action.setPadding(dp(14), dp(12), dp(14), dp(12));
+        action.setBackground(round(resolveBackgroundColor(), 14));
+        action.setOnClickListener(listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, dp(6));
+        container.addView(action, params);
+    }
+
     private View buildMediaCard(Song song, boolean strongAccent) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -967,6 +951,16 @@ public class MainActivity extends Activity {
         }
         content.addView(themeCard);
 
+        TextView pureBlackToggle = textView("Pure black mode: " + (pureBlack ? "On" : "Off"), resolveSecondaryTextColor(), 13f);
+        pureBlackToggle.setPadding(dp(12), dp(12), dp(12), dp(12));
+        pureBlackToggle.setBackground(round(resolveBackgroundColor(), 12));
+        pureBlackToggle.setOnClickListener(v -> {
+            pureBlack = !pureBlack;
+            savePreferences();
+            buildUi();
+        });
+        content.addView(pureBlackToggle, new LinearLayout.LayoutParams(-1, -2));
+
         addSectionTitle("Accent");
         LinearLayout accentCard = new LinearLayout(this);
         accentCard.setOrientation(LinearLayout.VERTICAL);
@@ -1006,6 +1000,18 @@ public class MainActivity extends Activity {
         accentCard.addView(accentWrap);
         content.addView(accentCard);
 
+        addSectionTitle("Vivi-inspired settings");
+        LinearLayout settingsActions = new LinearLayout(this);
+        settingsActions.setOrientation(LinearLayout.VERTICAL);
+        settingsActions.setBackground(round(resolveSurfaceColor(), 22));
+        settingsActions.setPadding(dp(12), dp(8), dp(12), dp(8));
+
+        addSettingsButton(settingsActions, "Appearance settings", v -> startActivity(new Intent(this, AppearanceSettingsActivity.class)));
+        addSettingsButton(settingsActions, "Player settings", v -> startActivity(new Intent(this, PlayerSettingsActivity.class)));
+        addSettingsButton(settingsActions, "Theme screen", v -> startActivity(new Intent(this, ThemeScreenActivity.class)));
+        addSettingsButton(settingsActions, "About Velora", v -> startActivity(new Intent(this, AboutActivity.class)));
+        content.addView(settingsActions);
+
         addSectionTitle("Playback");
         LinearLayout playbackCard = new LinearLayout(this);
         playbackCard.setOrientation(LinearLayout.VERTICAL);
@@ -1041,7 +1047,7 @@ public class MainActivity extends Activity {
         instaButton.setTextColor(Color.WHITE);
         instaButton.setBackground(round(resolveSurfaceColor(), 16));
         instaButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/akshatmishra/"));
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/akshat.mishra102?igsi=a3l3ajF0dnRpcWRz"));
             startActivity(intent);
         });
         aboutCard.addView(instaButton);

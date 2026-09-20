@@ -1,0 +1,86 @@
+package com.veloramusic;
+
+import android.app.Activity;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+public class PlayerSettingsActivity extends Activity {
+    private SharedPreferences prefs;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        prefs = getSharedPreferences(VeloraThemeManager.PREF_NAME, MODE_PRIVATE);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.rgb(9, 10, 14));
+        root.setPadding(dp(18), dp(16), dp(18), dp(16));
+
+        TextView title = new TextView(this);
+        title.setText("Player settings");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(24);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, dp(16));
+        root.addView(title);
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+
+        addToggle(content, "Persistent queue", prefs.getBoolean(VeloraThemeManager.KEY_PERSIST_QUEUE, true),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PERSIST_QUEUE, checked).apply());
+        addToggle(content, "Keep screen on while playing", prefs.getBoolean(VeloraThemeManager.KEY_KEEP_SCREEN_ON, false),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_KEEP_SCREEN_ON, checked).apply());
+        addToggle(content, "Audio normalization", prefs.getBoolean(VeloraThemeManager.KEY_AUDIO_NORMALIZATION, true),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_AUDIO_NORMALIZATION, checked).apply());
+        addToggle(content, "Pause on mute", prefs.getBoolean(VeloraThemeManager.KEY_PAUSE_ON_MUTE, false),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PAUSE_ON_MUTE, checked).apply());
+        addToggle(content, "Resume on Bluetooth", prefs.getBoolean(VeloraThemeManager.KEY_RESUME_ON_BLUETOOTH, false),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_RESUME_ON_BLUETOOTH, checked).apply());
+        addToggle(content, "Enable crossfade", prefs.getBoolean(VeloraThemeManager.KEY_ENABLE_CROSSFADE, false),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_ENABLE_CROSSFADE, checked).apply());
+
+        scroll.addView(content);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        setContentView(root);
+    }
+
+    private void addToggle(LinearLayout parent, String label, boolean checked, ToggleChangeListener listener) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(12), dp(12), dp(12));
+        row.setBackgroundColor(Color.argb(22, 255, 255, 255));
+
+        TextView text = new TextView(this);
+        text.setText(label);
+        text.setTextColor(Color.WHITE);
+        text.setTextSize(15);
+        text.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(text);
+
+        CheckBox checkbox = new CheckBox(this);
+        checkbox.setChecked(checked);
+        checkbox.setOnCheckedChangeListener((button, isChecked) -> listener.onChange(isChecked));
+        row.addView(checkbox);
+
+        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private interface ToggleChangeListener {
+        void onChange(boolean checked);
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+}

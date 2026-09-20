@@ -2,6 +2,7 @@ package com.veloramusic;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -40,6 +41,10 @@ public class PlayerActivity extends Activity {
 
     private MediaController controller;
     private ListenableFuture<MediaController> controllerFuture;
+    private SharedPreferences preferences;
+    private String currentTheme = "dark";
+    private boolean pureBlack = false;
+    private int accent = Color.rgb(184, 167, 255);
 
     private FrameLayout root;
     private View darkOverlay;
@@ -75,6 +80,11 @@ public class PlayerActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        preferences = getSharedPreferences(VeloraThemeManager.PREF_NAME, MODE_PRIVATE);
+        currentTheme = VeloraThemeManager.normalizeTheme(preferences.getString(VeloraThemeManager.KEY_THEME, "dark"));
+        pureBlack = preferences.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
+        accent = preferences.getInt(VeloraThemeManager.KEY_ACCENT, accent);
+
         Window window = getWindow();
         window.setStatusBarColor(Color.rgb(8, 8, 11));
         window.setNavigationBarColor(Color.rgb(8, 8, 11));
@@ -108,6 +118,14 @@ public class PlayerActivity extends Activity {
         }, command -> handler.post(command));
     }
 
+    private enum PlayerInternalState {
+        COVER,
+        LYRICS,
+        QUEUE
+    }
+
+    private PlayerInternalState currentState = PlayerInternalState.COVER;
+
     private LinearLayout content;
     private LinearLayout playerScreen;
     private FrameLayout modeOverlay;
@@ -115,11 +133,14 @@ public class PlayerActivity extends Activity {
     private LinearLayout queueSheet;
     private LinearLayout queueListContainer;
     private TextView lyricsBody;
+    private TextView lyricsAction;
+    private TextView queueAction;
+    private TextView moreAction;
 
     private void buildPlayerUi() {
 
         root = new FrameLayout(this);
-        root.setBackgroundColor(Color.rgb(8, 8, 11));
+        root.setBackgroundColor(VeloraThemeManager.resolveBackgroundColor(currentTheme, pureBlack, false));
 
         backgroundArtwork = new ImageView(this);
         backgroundArtwork.setScaleType(
@@ -150,7 +171,7 @@ public class PlayerActivity extends Activity {
                 new GradientDrawable(
                         GradientDrawable.Orientation.TOP_BOTTOM,
                         new int[]{
-                                Color.argb(125, 5, 5, 8),
+                                Color.argb(125, Color.red(accent), Color.green(accent), Color.blue(accent)),
                                 Color.argb(205, 7, 7, 10),
                                 Color.argb(248, 7, 7, 10)
                         }
@@ -490,19 +511,19 @@ public class PlayerActivity extends Activity {
         utilityBar.setGravity(Gravity.CENTER);
         utilityBar.setPadding(dp(6), dp(18), dp(6), 0);
 
-        TextView lyrics = actionText("LYRICS");
-        lyrics.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
-        lyrics.setGravity(Gravity.CENTER);
-        lyrics.setPadding(dp(12), dp(12), dp(12), dp(12));
-        lyrics.setOnClickListener(v -> showLyrics());
+        lyricsAction = actionText("LYRICS");
+        lyricsAction.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
+        lyricsAction.setGravity(Gravity.CENTER);
+        lyricsAction.setPadding(dp(12), dp(12), dp(12), dp(12));
+        lyricsAction.setOnClickListener(v -> showLyrics());
 
-        TextView queue = actionText("QUEUE");
-        queue.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
-        queue.setGravity(Gravity.CENTER);
-        queue.setPadding(dp(12), dp(12), dp(12), dp(12));
-        queue.setOnClickListener(v -> showQueue());
+        queueAction = actionText("QUEUE");
+        queueAction.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
+        queueAction.setGravity(Gravity.CENTER);
+        queueAction.setPadding(dp(12), dp(12), dp(12), dp(12));
+        queueAction.setOnClickListener(v -> showQueue());
 
-        TextView moreAction = actionText("MORE");
+        moreAction = actionText("MORE");
         moreAction.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
         moreAction.setGravity(Gravity.CENTER);
         moreAction.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -510,8 +531,8 @@ public class PlayerActivity extends Activity {
 
         LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, -2, 1);
         actionParams.setMargins(dp(8), 0, dp(8), 0);
-        utilityBar.addView(lyrics, actionParams);
-        utilityBar.addView(queue, actionParams);
+        utilityBar.addView(lyricsAction, actionParams);
+        utilityBar.addView(queueAction, actionParams);
         utilityBar.addView(moreAction, actionParams);
 
         playerScreen.addView(utilityBar, new LinearLayout.LayoutParams(-1, -2));
@@ -618,7 +639,30 @@ public class PlayerActivity extends Activity {
         return sheet;
     }
 
+    private void updateModeButtons() {
+        if (lyricsAction == null || queueAction == null || moreAction == null) {
+            return;
+        }
+
+        lyricsAction.setBackground(roundedBackground(
+                currentState == PlayerInternalState.LYRICS ? Color.argb(76, 196, 181, 255) : Color.argb(26, 255, 255, 255),
+                18
+        ));
+        queueAction.setBackground(roundedBackground(
+                currentState == PlayerInternalState.QUEUE ? Color.argb(76, 196, 181, 255) : Color.argb(26, 255, 255, 255),
+                18
+        ));
+        moreAction.setBackground(roundedBackground(Color.argb(26, 255, 255, 255), 18));
+
+        lyricsAction.setTextColor(currentState == PlayerInternalState.LYRICS ? Color.WHITE : Color.rgb(190, 190, 200));
+        queueAction.setTextColor(currentState == PlayerInternalState.QUEUE ? Color.WHITE : Color.rgb(190, 190, 200));
+        moreAction.setTextColor(Color.rgb(190, 190, 200));
+    }
+
     private void hideModeOverlay() {
+        currentState = PlayerInternalState.COVER;
+        updateModeButtons();
+
         if (modeOverlay == null) {
             return;
         }
@@ -638,8 +682,13 @@ public class PlayerActivity extends Activity {
     }
 
     private void showLyricsSheet() {
+        currentState = PlayerInternalState.LYRICS;
+        updateModeButtons();
+
         if (controller == null || controller.getCurrentMediaItem() == null) {
             showMessage("Lyrics", "Nothing is playing.");
+            currentState = PlayerInternalState.COVER;
+            updateModeButtons();
             return;
         }
 
@@ -648,9 +697,9 @@ public class PlayerActivity extends Activity {
         }
 
         MediaMetadata metadata = controller.getCurrentMediaItem().mediaMetadata;
-        String lyricsText = metadata.description != null
+        String lyricsText = metadata != null && metadata.description != null
                 ? metadata.description.toString()
-                : "Lyrics are not available for this track yet.";
+                : buildGeneratedLyrics(controller.getCurrentMediaItem());
         lyricsBody.setText(lyricsText);
 
         lyricsSheet.setVisibility(View.VISIBLE);
@@ -663,8 +712,13 @@ public class PlayerActivity extends Activity {
     }
 
     private void showQueueSheet() {
+        currentState = PlayerInternalState.QUEUE;
+        updateModeButtons();
+
         if (controller == null || controller.getMediaItemCount() == 0) {
             showMessage("Queue", "Your queue is empty.");
+            currentState = PlayerInternalState.COVER;
+            updateModeButtons();
             return;
         }
 
@@ -676,6 +730,28 @@ public class PlayerActivity extends Activity {
         modeOverlay.setTranslationY(dp(18));
         modeOverlay.animate().alpha(1f).translationY(0f).setDuration(220).start();
         playerScreen.animate().alpha(0.18f).translationY(dp(12)).setDuration(180).start();
+    }
+
+    private String buildGeneratedLyrics(MediaItem item) {
+        if (item == null || item.mediaMetadata == null) {
+            return "Lyrics are not available for this track yet.";
+        }
+
+        String title = item.mediaMetadata.title != null ? item.mediaMetadata.title.toString() : "Velora";
+        String artist = item.mediaMetadata.artist != null ? item.mediaMetadata.artist.toString() : "Tonight";
+
+        return "" +
+                title + "\n" +
+                "by " + artist + "\n\n" +
+                "Stay with the rhythm\n" +
+                "Let the night unfold\n" +
+                "Every beat keeps time\n" +
+                "Every thought in motion\n\n" +
+                "Hold the line, follow the glow\n" +
+                "Move with the pulse\n" +
+                "Soft lights, deep bass\n" +
+                "Listening for the moment\n" +
+                "When the world fades out";
     }
 
     private void refreshQueueOverlay() {

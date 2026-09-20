@@ -22,8 +22,20 @@
             </intent-filter>
         </activity>
         <activity
-    android:name=".PlayerActivity"
-    android:exported="false" />
+            android:name=".PlayerActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AppearanceSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".PlayerSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ThemeScreenActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false" />
 
         <service
             android:name=".PlaybackService"
