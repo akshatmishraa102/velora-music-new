@@ -1409,7 +1409,7 @@ public class MainActivity extends Activity {
         TextView blackTitle = textView("Pure black mode", resolvePrimaryTextColor(), 14f);
         blackTitle.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
 
-        boolean blackChecked = prefs != null && prefs.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
+        boolean blackChecked = preferences != null && preferences.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
         TextView blackValue = textView(blackChecked ? "On" : "Off", resolveSecondaryTextColor(), 12f);
         blackValue.setPadding(dp(10), dp(4), dp(10), dp(4));
         blackValue.setBackground(round(resolveBackgroundColor(), 999));
@@ -1431,14 +1431,14 @@ public class MainActivity extends Activity {
         playerCard.setBackground(round(resolveSurfaceColor(), 22));
         playerCard.setPadding(dp(12), dp(10), dp(12), dp(10));
 
-        addRealSettingsToggle(playerCard, "Animated artwork", prefs.getBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, true),
-                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, checked).apply());
-        addRealSettingsToggle(playerCard, "Dynamic album accent", prefs.getBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, true),
-                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, checked).apply());
-        addRealSettingsToggle(playerCard, "Swipe to change track", prefs.getBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, true),
-                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, checked).apply());
-        addRealSettingsToggle(playerCard, "Show quality badge", prefs.getBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, true),
-                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, checked).apply());
+        addRealSettingsToggle(playerCard, "Animated artwork", preferences.getBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, true),
+                (checked) -> preferences.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, checked).apply());
+        addRealSettingsToggle(playerCard, "Dynamic album accent", preferences.getBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, true),
+                (checked) -> preferences.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, checked).apply());
+        addRealSettingsToggle(playerCard, "Swipe to change track", preferences.getBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, true),
+                (checked) -> preferences.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, checked).apply());
+        addRealSettingsToggle(playerCard, "Show quality badge", preferences.getBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, true),
+                (checked) -> preferences.edit().putBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, checked).apply());
 
         LinearLayout styleRow = new LinearLayout(this);
         styleRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1449,7 +1449,7 @@ public class MainActivity extends Activity {
         styleLabel.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
         styleRow.addView(styleLabel);
 
-        String currentProgress = prefs.getString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, "smooth");
+        String currentProgress = preferences.getString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, "smooth");
         String[] styles = {"Smooth", "Minimal"};
         for (String style : styles) {
             final String value = style.toLowerCase(Locale.US);
@@ -1457,7 +1457,7 @@ public class MainActivity extends Activity {
             TextView option = textView(style, selected ? Color.WHITE : resolvePrimaryTextColor(), 12f);
             option.setBackground(selected ? round(accent, 999) : round(resolveBackgroundColor(), 999));
             option.setPadding(dp(12), dp(6), dp(12), dp(6));
-            option.setOnClickListener(v -> prefs.edit().putString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, value).apply());
+            option.setOnClickListener(v -> preferences.edit().putString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, value).apply());
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
             params.setMargins(0, 0, dp(8), 0);
             styleRow.addView(option, params);
@@ -1477,11 +1477,11 @@ public class MainActivity extends Activity {
         String[] radiusLabels = {"Soft", "Standard", "Sharp"};
         for (int i = 0; i < radiusLabels.length; i++) {
             final int radius = radiusValues[i];
-            boolean selected = prefs.getInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, 30) == radius;
+            boolean selected = preferences.getInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, 30) == radius;
             TextView chip = textView(radiusLabels[i], selected ? Color.WHITE : resolvePrimaryTextColor(), 11f);
             chip.setBackground(selected ? round(accent, 999) : round(resolveBackgroundColor(), 999));
             chip.setPadding(dp(10), dp(6), dp(10), dp(6));
-            chip.setOnClickListener(v -> prefs.edit().putInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, radius).apply());
+            chip.setOnClickListener(v -> preferences.edit().putInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, radius).apply());
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
             params.setMargins(0, 0, dp(8), 0);
             artworkRow.addView(chip, params);
