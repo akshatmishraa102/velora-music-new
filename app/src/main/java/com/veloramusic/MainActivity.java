@@ -14,10 +14,14 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -25,6 +29,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -68,6 +73,8 @@ public class MainActivity extends Activity {
     private boolean pureBlack = false;
     private int searchResultsIndex = 0;
     private int libraryResultsIndex = 0;
+    private final Handler searchUiHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearchRunnable;
 
     private int accent = Color.rgb(184, 167, 255);
 
@@ -779,55 +786,85 @@ public class MainActivity extends Activity {
         selectedTabIndex = 1;
         updateNavigationSelection();
         clearContent();
-        heading("Search", "Browse your library and recent picks.");
+
+        TextView headingText = textView("Search", resolvePrimaryTextColor(), 30f);
+        headingText.setTypeface(null, Typeface.BOLD);
+        headingText.setPadding(0, dp(6), 0, dp(10));
+        content.addView(headingText);
+
+        TextView subtitle = textView("Browse your library and jump back into the sound you love.", resolveSecondaryTextColor(), 13f);
+        subtitle.setPadding(0, 0, 0, dp(18));
+        content.addView(subtitle);
 
         LinearLayout searchWrap = new LinearLayout(this);
         searchWrap.setOrientation(LinearLayout.HORIZONTAL);
-        searchWrap.setBackground(round(resolveSurfaceColor(), 20));
-        searchWrap.setPadding(dp(14), dp(8), dp(10), dp(8));
+        searchWrap.setBackground(round(resolveSurfaceColor(), 22));
+        searchWrap.setPadding(dp(14), dp(10), dp(10), dp(10));
         searchWrap.setGravity(Gravity.CENTER_VERTICAL);
+        searchWrap.setElevation(dp(1));
+        searchWrap.setTag("search_field_tag");
+
+        ImageView searchIcon = new ImageView(this);
+        searchIcon.setImageResource(android.R.drawable.ic_menu_search);
+        searchIcon.setColorFilter(resolveSecondaryTextColor());
+        searchIcon.setLayoutParams(new LinearLayout.LayoutParams(dp(22), dp(22)));
 
         final EditText search = new EditText(this);
-        search.setHint("Song, artist, album...");
+        search.setHint("Search songs, artists, albums...");
         search.setSingleLine(true);
         search.setTextColor(resolvePrimaryTextColor());
         search.setHintTextColor(resolveSecondaryTextColor());
         search.setBackgroundColor(Color.TRANSPARENT);
-        search.setPadding(dp(10), dp(10), dp(10), dp(10));
+        search.setPadding(dp(12), dp(10), dp(12), dp(10));
+        search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+        search.setTextSize(15f);
 
         Button clear = new Button(this);
         clear.setText("Clear");
         clear.setTextColor(accent);
         clear.setBackgroundColor(Color.TRANSPARENT);
-        clear.setOnClickListener(v -> search.setText(""));
+        clear.setOnClickListener(v -> {
+            search.setText("");
+            search.requestFocus();
+            InputMethodManager imm = (InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(search, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
 
+        searchWrap.addView(searchIcon, new LinearLayout.LayoutParams(dp(24), dp(24)));
         searchWrap.addView(search, new LinearLayout.LayoutParams(0, -2, 1f));
         searchWrap.addView(clear, new LinearLayout.LayoutParams(-2, -2));
         content.addView(searchWrap, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView suggHeader = textView("Suggestions", resolveSecondaryTextColor(), 12f);
-        suggHeader.setTypeface(null, Typeface.BOLD);
-        suggHeader.setPadding(0, dp(18), 0, dp(10));
-        content.addView(suggHeader);
-
-        LinearLayout chips = new LinearLayout(this);
-        chips.setOrientation(LinearLayout.HORIZONTAL);
-        chips.setPadding(0, 0, 0, dp(10));
-        String[] chipLabels = {"All", "Trending", "Favorites", "Night drive", "Acoustic"};
-        for (final String chip : chipLabels) {
-            TextView item = textView(chip, resolvePrimaryTextColor(), 12f);
-            item.setBackground(round(resolveSurfaceColor(), 999));
-            item.setPadding(dp(14), dp(8), dp(14), dp(8));
-            item.setOnClickListener(v -> search.setText(chip.equals("All") ? "" : chip));
-            chips.addView(item, new LinearLayout.LayoutParams(-2, -2));
-        }
-        content.addView(chips);
+        search.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
+                v.clearFocus();
+                InputMethodManager imm = (InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                }
+                renderSearch(v.getText().toString());
+                return true;
+            }
+            return false;
+        });
 
         search.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(android.text.Editable s) {
-                renderSearch(s.toString());
+                final String value = s == null ? "" : s.toString();
+                if (pendingSearchRunnable != null) {
+                    searchUiHandler.removeCallbacks(pendingSearchRunnable);
+                }
+                if (value == null || value.trim().isEmpty()) {
+                    renderSearch("");
+                    return;
+                }
+                renderSearchLoading(value);
+                pendingSearchRunnable = () -> renderSearch(value);
+                searchUiHandler.postDelayed(pendingSearchRunnable, 180L);
             }
         });
 
@@ -1150,35 +1187,258 @@ public class MainActivity extends Activity {
             content.removeViewAt(content.getChildCount() - 1);
         }
 
-        String lower = query == null ? "" : query.toLowerCase(Locale.US);
+        String trimmed = query == null ? "" : query.trim();
+        String lower = trimmed.toLowerCase(Locale.US);
+
+        List<String> history = getRecentSearchHistory();
+        if (!history.isEmpty() && (trimmed.isEmpty() || lower.length() < 2)) {
+            TextView recentHeader = textView("Recently searched", resolveSecondaryTextColor(), 12f);
+            recentHeader.setTypeface(null, Typeface.BOLD);
+            recentHeader.setPadding(0, dp(18), 0, dp(10));
+            content.addView(recentHeader);
+
+            HorizontalScrollView historyScroll = new HorizontalScrollView(this);
+            historyScroll.setHorizontalScrollBarEnabled(false);
+            historyScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout chips = new LinearLayout(this);
+            chips.setOrientation(LinearLayout.HORIZONTAL);
+            chips.setPadding(0, 0, 0, dp(10));
+            for (final String item : history) {
+                TextView chip = textView(item, resolvePrimaryTextColor(), 12f);
+                chip.setBackground(round(resolveSurfaceColor(), 999));
+                chip.setPadding(dp(14), dp(8), dp(14), dp(8));
+                chip.setOnClickListener(v -> {
+                    EditText searchField = findSearchField();
+                    if (searchField != null) {
+                        searchField.setText(item);
+                        searchField.setSelection(item.length());
+                    }
+                });
+                chips.addView(chip, new LinearLayout.LayoutParams(-2, -2));
+            }
+            historyScroll.addView(chips);
+            content.addView(historyScroll, new LinearLayout.LayoutParams(-1, -2));
+        }
+
+        if (trimmed.isEmpty()) {
+            if (songs.isEmpty()) {
+                content.addView(emptySearchState("Search your library for songs, artists, and albums."));
+            } else {
+                List<Song> topMatches = new ArrayList<>();
+                for (Song song : songs) {
+                    if (topMatches.size() >= 6) {
+                        break;
+                    }
+                    topMatches.add(song);
+                }
+                renderSearchResults(topMatches, true);
+            }
+            return;
+        }
+
+        if (trimmed.length() < 2) {
+            renderSearchResults(new ArrayList<>(), false);
+            return;
+        }
+
         List<Song> matches = new ArrayList<>();
         for (Song song : songs) {
-            if (query == null || query.isEmpty() || song.title.toLowerCase(Locale.US).contains(lower) || song.artist.toLowerCase(Locale.US).contains(lower)) {
+            if (song.title.toLowerCase(Locale.US).contains(lower) || song.artist.toLowerCase(Locale.US).contains(lower) || (song.albumArtUri != null && song.albumArtUri.toLowerCase(Locale.US).contains(lower))) {
                 matches.add(song);
             }
         }
 
-        if (matches.isEmpty()) {
-            LinearLayout emptyState = new LinearLayout(this);
-            emptyState.setOrientation(LinearLayout.VERTICAL);
-            emptyState.setPadding(dp(12), dp(16), dp(12), dp(12));
-            emptyState.setBackground(round(resolveSurfaceColor(), 18));
+        renderSearchResults(matches, false);
+    }
 
-            TextView title = textView("No results found", resolvePrimaryTextColor(), 16f);
-            title.setTypeface(null, Typeface.BOLD);
-            TextView message = textView(query == null || query.isEmpty() ? "Start typing to search your library." : "Try a different title, artist or album name.", resolveSecondaryTextColor(), 13f);
-            emptyState.addView(title);
-            emptyState.addView(message);
-            content.addView(emptyState);
+    private void renderSearchLoading(String query) {
+        if (content == null || query == null || query.trim().isEmpty()) {
+            return;
+        }
+
+        while (content.getChildCount() > searchResultsIndex) {
+            content.removeViewAt(content.getChildCount() - 1);
+        }
+
+        LinearLayout loading = new LinearLayout(this);
+        loading.setOrientation(LinearLayout.HORIZONTAL);
+        loading.setGravity(Gravity.CENTER_VERTICAL);
+        loading.setPadding(dp(16), dp(18), dp(16), dp(18));
+        loading.setBackground(round(resolveSurfaceColor(), 20));
+
+        ProgressBar spinner = new ProgressBar(this);
+        spinner.getIndeterminateDrawable().setColorFilter(accent, android.graphics.PorterDuff.Mode.SRC_IN);
+
+        TextView label = textView("Searching...", resolveSecondaryTextColor(), 13f);
+        label.setPadding(dp(12), 0, 0, 0);
+
+        loading.addView(spinner, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        loading.addView(label, new LinearLayout.LayoutParams(-2, -2));
+        content.addView(loading);
+    }
+
+    private void renderSearchResults(List<Song> matches, boolean isQuickBrowse) {
+        if (matches.isEmpty()) {
+            content.addView(emptySearchState(isQuickBrowse
+                    ? "No tracks in this library yet. Your search will appear here as soon as you add music."
+                    : "No results found. Try another title, artist, or album name."));
             return;
         }
 
         LinearLayout section = new LinearLayout(this);
         section.setOrientation(LinearLayout.VERTICAL);
-        for (Song song : matches) {
-            section.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
+        section.setPadding(0, dp(12), 0, 0);
+        for (int i = 0; i < matches.size(); i++) {
+            View row = buildSearchResultRow(matches.get(i), i);
+            row.setAlpha(0f);
+            row.setTranslationY(dp(10));
+            section.addView(row, new LinearLayout.LayoutParams(-1, -2));
+            row.animate().alpha(1f).translationY(0f).setDuration(150 + (i * 18)).start();
         }
         content.addView(section);
+    }
+
+    private View emptySearchState(String message) {
+        LinearLayout emptyState = new LinearLayout(this);
+        emptyState.setOrientation(LinearLayout.VERTICAL);
+        emptyState.setPadding(dp(16), dp(18), dp(16), dp(18));
+        emptyState.setBackground(round(resolveSurfaceColor(), 20));
+
+        TextView title = textView("No matches", resolvePrimaryTextColor(), 16f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, dp(6));
+
+        TextView body = textView(message, resolveSecondaryTextColor(), 13f);
+
+        emptyState.addView(title);
+        emptyState.addView(body);
+        return emptyState;
+    }
+
+    private View buildSearchResultRow(Song song, int index) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setBackground(round(resolveSurfaceColor(), 18));
+        row.setOnClickListener(v -> {
+            saveRecentSearch(song.title);
+            playSong(song);
+        });
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, dp(8));
+        row.setLayoutParams(params);
+
+        FrameLayout artWrap = new FrameLayout(this);
+        artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(52), dp(52)));
+        artWrap.setBackground(round(accent, 16));
+
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        art.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        Bitmap artBitmap = loadArtworkBitmap(song.albumArtUri, dp(52));
+        if (artBitmap != null) {
+            art.setImageBitmap(artBitmap);
+        }
+        artWrap.addView(art);
+
+        TextView fallback = textView(
+                song.title != null && !song.title.isEmpty() ? String.valueOf(song.title.charAt(0)).toUpperCase(Locale.US) : "V",
+                Color.WHITE,
+                18f
+        );
+        fallback.setGravity(Gravity.CENTER);
+        fallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        if (artBitmap == null) {
+            artWrap.addView(fallback);
+        }
+
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(dp(12), 0, dp(10), 0);
+        info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView title = textView(song.title, resolvePrimaryTextColor(), 15f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        TextView artist = textView(song.artist, resolveSecondaryTextColor(), 12f);
+        artist.setSingleLine(true);
+        artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        info.addView(title);
+        info.addView(artist);
+
+        Button play = new Button(this);
+        play.setText("▶");
+        play.setTextColor(Color.WHITE);
+        play.setTextSize(14f);
+        play.setBackground(round(accent, 999));
+        play.setOnClickListener(v -> {
+            saveRecentSearch(song.title);
+            playSong(song);
+        });
+        play.setLayoutParams(new LinearLayout.LayoutParams(dp(38), dp(38)));
+
+        row.addView(artWrap);
+        row.addView(info);
+        row.addView(play);
+        return row;
+    }
+
+    private EditText findSearchField() {
+        if (content == null) {
+            return null;
+        }
+        for (int i = 0; i < content.getChildCount(); i++) {
+            View child = content.getChildAt(i);
+            if (child instanceof LinearLayout && child.getTag() != null && "search_field_tag".equals(child.getTag())) {
+                return (EditText) ((LinearLayout) child).getChildAt(1);
+            }
+        }
+        return null;
+    }
+
+    private void saveRecentSearch(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return;
+        }
+        String value = query.trim();
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        String raw = prefs.getString("velora_recent_searches", "");
+        List<String> history = new ArrayList<>();
+        if (!raw.isEmpty()) {
+            String[] parts = raw.split("\n");
+            for (String part : parts) {
+                String next = part.trim();
+                if (!next.isEmpty() && !next.equalsIgnoreCase(value)) {
+                    history.add(next);
+                }
+            }
+        }
+        history.add(0, value);
+        while (history.size() > 6) {
+            history.remove(history.size() - 1);
+        }
+        prefs.edit().putString("velora_recent_searches", android.text.TextUtils.join("\n", history)).apply();
+    }
+
+    private List<String> getRecentSearchHistory() {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        String raw = prefs.getString("velora_recent_searches", "");
+        List<String> history = new ArrayList<>();
+        if (raw == null || raw.trim().isEmpty()) {
+            return history;
+        }
+        String[] parts = raw.split("\n");
+        for (String part : parts) {
+            String item = part.trim();
+            if (!item.isEmpty()) {
+                history.add(item);
+            }
+        }
+        return history;
     }
 
     private void renderSongs(String filter) {
