@@ -23,6 +23,7 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -1342,65 +1343,52 @@ public class MainActivity extends Activity {
         selectedTabIndex = 3;
         updateNavigationSelection();
         clearContent();
-        heading("Customise", "Tune the app to your listening mood.");
+
+        TextView headingText = textView("Settings", resolvePrimaryTextColor(), 30f);
+        headingText.setTypeface(null, Typeface.BOLD);
+        headingText.setPadding(0, dp(6), 0, dp(8));
+        content.addView(headingText);
+
+        TextView subtitle = textView("Fine-tune your look, player, and listening flow.", resolveSecondaryTextColor(), 13f);
+        subtitle.setPadding(0, 0, 0, dp(18));
+        content.addView(subtitle);
 
         addSectionTitle("Appearance");
-        LinearLayout themeCard = new LinearLayout(this);
-        themeCard.setOrientation(LinearLayout.VERTICAL);
-        themeCard.setBackground(round(resolveSurfaceColor(), 22));
-        themeCard.setPadding(dp(12), dp(8), dp(12), dp(8));
+        LinearLayout appearanceCard = new LinearLayout(this);
+        appearanceCard.setOrientation(LinearLayout.VERTICAL);
+        appearanceCard.setBackground(round(resolveSurfaceColor(), 22));
+        appearanceCard.setPadding(dp(12), dp(10), dp(12), dp(10));
 
-        String[] modes = {"Dark", "AMOLED", "Light", "Auto"};
-        for (String mode : modes) {
-            TextView option = textView(mode, resolvePrimaryTextColor(), 14f);
-            option.setPadding(dp(12), dp(12), dp(12), dp(12));
-            option.setBackground(round(resolveBackgroundColor(), 12));
-            option.setOnClickListener(v -> {
-                currentTheme = mode.toLowerCase(Locale.US);
+        LinearLayout themeRow = new LinearLayout(this);
+        themeRow.setOrientation(LinearLayout.HORIZONTAL);
+        themeRow.setGravity(Gravity.CENTER_VERTICAL);
+        String[] themes = {"Dark", "AMOLED", "Light", "Auto"};
+        for (String mode : themes) {
+            final String value = mode.toLowerCase(Locale.US);
+            boolean selected = currentTheme.equals(value);
+            TextView chip = textView(mode, selected ? Color.WHITE : resolvePrimaryTextColor(), 12f);
+            chip.setBackground(selected ? round(accent, 999) : round(resolveBackgroundColor(), 999));
+            chip.setPadding(dp(14), dp(8), dp(14), dp(8));
+            chip.setOnClickListener(v -> {
+                currentTheme = VeloraThemeManager.normalizeTheme(value);
                 savePreferences();
                 buildUi();
                 connectController();
             });
-            themeCard.addView(option, new LinearLayout.LayoutParams(-1, -2));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+            params.setMargins(0, 0, dp(8), 0);
+            themeRow.addView(chip, params);
         }
-        content.addView(themeCard);
-
-        TextView pureBlackToggle = textView("Pure black mode: " + (pureBlack ? "On" : "Off"), resolveSecondaryTextColor(), 13f);
-        pureBlackToggle.setPadding(dp(12), dp(12), dp(12), dp(12));
-        pureBlackToggle.setBackground(round(resolveBackgroundColor(), 12));
-        pureBlackToggle.setOnClickListener(v -> {
-            pureBlack = !pureBlack;
-            savePreferences();
-            buildUi();
-        });
-        content.addView(pureBlackToggle, new LinearLayout.LayoutParams(-1, -2));
-
-        addSectionTitle("Accent");
-        LinearLayout accentCard = new LinearLayout(this);
-        accentCard.setOrientation(LinearLayout.VERTICAL);
-        accentCard.setBackground(round(resolveSurfaceColor(), 22));
-        accentCard.setPadding(dp(12), dp(12), dp(12), dp(12));
-
-        TextView accentTitle = textView("Choose a highlight", resolveSecondaryTextColor(), 12f);
-        accentTitle.setPadding(0, 0, 0, dp(10));
-        accentCard.addView(accentTitle);
+        appearanceCard.addView(themeRow);
 
         LinearLayout accentWrap = new LinearLayout(this);
         accentWrap.setOrientation(LinearLayout.HORIZONTAL);
         accentWrap.setGravity(Gravity.CENTER_VERTICAL);
-
-        int[] colors = {
-                Color.rgb(184, 167, 255),
-                Color.rgb(88, 188, 255),
-                Color.rgb(72, 226, 187),
-                Color.rgb(255, 144, 110),
-                Color.rgb(255, 120, 154)
-        };
-
-        for (int color : colors) {
+        accentWrap.setPadding(0, dp(12), 0, 0);
+        for (final int color : VeloraThemeManager.ACCENT_COLORS) {
             View chip = new View(this);
             chip.setBackground(round(color, 999));
-            int size = dp(30);
+            int size = dp(28);
             LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(size, size);
             chipParams.setMargins(0, 0, dp(10), 0);
             chip.setOnClickListener(v -> {
@@ -1411,40 +1399,101 @@ public class MainActivity extends Activity {
             });
             accentWrap.addView(chip, chipParams);
         }
-        accentCard.addView(accentWrap);
-        content.addView(accentCard);
+        appearanceCard.addView(accentWrap);
 
-        addSectionTitle("Vivi-inspired settings");
-        LinearLayout settingsActions = new LinearLayout(this);
-        settingsActions.setOrientation(LinearLayout.VERTICAL);
-        settingsActions.setBackground(round(resolveSurfaceColor(), 22));
-        settingsActions.setPadding(dp(12), dp(8), dp(12), dp(8));
+        LinearLayout pureBlackRow = new LinearLayout(this);
+        pureBlackRow.setOrientation(LinearLayout.HORIZONTAL);
+        pureBlackRow.setGravity(Gravity.CENTER_VERTICAL);
+        pureBlackRow.setPadding(0, dp(14), 0, 0);
 
-        addSettingsButton(settingsActions, "Appearance settings", v -> startActivity(new Intent(this, AppearanceSettingsActivity.class)));
-        addSettingsButton(settingsActions, "Player settings", v -> startActivity(new Intent(this, PlayerSettingsActivity.class)));
-        addSettingsButton(settingsActions, "Theme screen", v -> startActivity(new Intent(this, ThemeScreenActivity.class)));
-        addSettingsButton(settingsActions, "About Velora", v -> startActivity(new Intent(this, AboutActivity.class)));
-        content.addView(settingsActions);
+        TextView blackTitle = textView("Pure black mode", resolvePrimaryTextColor(), 14f);
+        blackTitle.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
 
-        addSectionTitle("Playback");
-        LinearLayout playbackCard = new LinearLayout(this);
-        playbackCard.setOrientation(LinearLayout.VERTICAL);
-        playbackCard.setBackground(round(resolveSurfaceColor(), 22));
-        playbackCard.setPadding(dp(14), dp(12), dp(14), dp(12));
+        boolean blackChecked = prefs != null && prefs.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
+        TextView blackValue = textView(blackChecked ? "On" : "Off", resolveSecondaryTextColor(), 12f);
+        blackValue.setPadding(dp(10), dp(4), dp(10), dp(4));
+        blackValue.setBackground(round(resolveBackgroundColor(), 999));
+        blackValue.setOnClickListener(v -> {
+            pureBlack = !pureBlack;
+            savePreferences();
+            buildUi();
+        });
 
-        TextView playback = textView("Modern player interactions, artwork navigation, and premium dark surfaces remain active in the player screen.", resolveSecondaryTextColor(), 13f);
-        playbackCard.addView(playback);
-        content.addView(playbackCard);
+        pureBlackRow.addView(blackTitle);
+        pureBlackRow.addView(blackValue);
+        appearanceCard.addView(pureBlackRow);
 
-        addSectionTitle("About Velora");
-        LinearLayout aboutCard = new LinearLayout(this);
-        aboutCard.setOrientation(LinearLayout.VERTICAL);
-        aboutCard.setBackground(round(resolveSurfaceColor(), 22));
-        aboutCard.setPadding(dp(14), dp(12), dp(14), dp(12));
+        content.addView(appearanceCard);
 
-        TextView about = textView("Velora Music is a lightweight Android music player built for local library playback, licensed streams, and premium dark-mode listening.", resolveSecondaryTextColor(), 13f);
-        about.setPadding(0, 0, 0, dp(10));
-        aboutCard.addView(about);
+        addSectionTitle("Player");
+        LinearLayout playerCard = new LinearLayout(this);
+        playerCard.setOrientation(LinearLayout.VERTICAL);
+        playerCard.setBackground(round(resolveSurfaceColor(), 22));
+        playerCard.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        addRealSettingsToggle(playerCard, "Animated artwork", prefs.getBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, true),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, checked).apply());
+        addRealSettingsToggle(playerCard, "Dynamic album accent", prefs.getBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, true),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, checked).apply());
+        addRealSettingsToggle(playerCard, "Swipe to change track", prefs.getBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, true),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, checked).apply());
+        addRealSettingsToggle(playerCard, "Show quality badge", prefs.getBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, true),
+                (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, checked).apply());
+
+        LinearLayout styleRow = new LinearLayout(this);
+        styleRow.setOrientation(LinearLayout.HORIZONTAL);
+        styleRow.setGravity(Gravity.CENTER_VERTICAL);
+        styleRow.setPadding(0, dp(8), 0, 0);
+
+        TextView styleLabel = textView("Progress style", resolvePrimaryTextColor(), 14f);
+        styleLabel.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        styleRow.addView(styleLabel);
+
+        String currentProgress = prefs.getString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, "smooth");
+        String[] styles = {"Smooth", "Minimal"};
+        for (String style : styles) {
+            final String value = style.toLowerCase(Locale.US);
+            boolean selected = value.equals(currentProgress);
+            TextView option = textView(style, selected ? Color.WHITE : resolvePrimaryTextColor(), 12f);
+            option.setBackground(selected ? round(accent, 999) : round(resolveBackgroundColor(), 999));
+            option.setPadding(dp(12), dp(6), dp(12), dp(6));
+            option.setOnClickListener(v -> prefs.edit().putString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, value).apply());
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+            params.setMargins(0, 0, dp(8), 0);
+            styleRow.addView(option, params);
+        }
+        playerCard.addView(styleRow);
+
+        LinearLayout artworkRow = new LinearLayout(this);
+        artworkRow.setOrientation(LinearLayout.HORIZONTAL);
+        artworkRow.setGravity(Gravity.CENTER_VERTICAL);
+        artworkRow.setPadding(0, dp(12), 0, 0);
+
+        TextView artworkLabel = textView("Artwork shape", resolvePrimaryTextColor(), 14f);
+        artworkLabel.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        artworkRow.addView(artworkLabel);
+
+        int[] radiusValues = {18, 30, 42};
+        String[] radiusLabels = {"Soft", "Standard", "Sharp"};
+        for (int i = 0; i < radiusLabels.length; i++) {
+            final int radius = radiusValues[i];
+            boolean selected = prefs.getInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, 30) == radius;
+            TextView chip = textView(radiusLabels[i], selected ? Color.WHITE : resolvePrimaryTextColor(), 11f);
+            chip.setBackground(selected ? round(accent, 999) : round(resolveBackgroundColor(), 999));
+            chip.setPadding(dp(10), dp(6), dp(10), dp(6));
+            chip.setOnClickListener(v -> prefs.edit().putInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, radius).apply());
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+            params.setMargins(0, 0, dp(8), 0);
+            artworkRow.addView(chip, params);
+        }
+        playerCard.addView(artworkRow);
+        content.addView(playerCard);
+
+        addSectionTitle("App");
+        LinearLayout appCard = new LinearLayout(this);
+        appCard.setOrientation(LinearLayout.VERTICAL);
+        appCard.setBackground(round(resolveSurfaceColor(), 22));
+        appCard.setPadding(dp(12), dp(12), dp(12), dp(12));
 
         Button sourceButton = new Button(this);
         sourceButton.setText("Open-source contribution");
@@ -1454,18 +1503,60 @@ public class MainActivity extends Activity {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/"));
             startActivity(intent);
         });
-        aboutCard.addView(sourceButton);
+        appCard.addView(sourceButton);
 
         Button instaButton = new Button(this);
-        instaButton.setText("Akshat Mishra on Instagram");
-        instaButton.setTextColor(Color.WHITE);
-        instaButton.setBackground(round(resolveSurfaceColor(), 16));
+        instaButton.setText("Instagram");
+        instaButton.setTextColor(resolvePrimaryTextColor());
+        instaButton.setBackground(round(resolveBackgroundColor(), 16));
         instaButton.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/akshat.mishra102?igsi=a3l3ajF0dnRpcWRz"));
             startActivity(intent);
         });
-        aboutCard.addView(instaButton);
+        appCard.addView(instaButton);
+        content.addView(appCard);
+
+        addSectionTitle("About");
+        LinearLayout aboutCard = new LinearLayout(this);
+        aboutCard.setOrientation(LinearLayout.VERTICAL);
+        aboutCard.setBackground(round(resolveSurfaceColor(), 22));
+        aboutCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+
+        TextView veloraBrand = textView("VELORA MUSIC", resolvePrimaryTextColor(), 22f);
+        veloraBrand.setTypeface(null, Typeface.BOLD);
+        veloraBrand.setPadding(0, 0, 0, dp(8));
+
+        TextView author = textView("Created by Akshat Mishra", resolveSecondaryTextColor(), 13f);
+        author.setPadding(0, 0, 0, dp(4));
+
+        TextView version = textView("Version 1.0.0", resolveSecondaryTextColor(), 13f);
+        version.setPadding(0, 0, 0, dp(14));
+
+        aboutCard.addView(veloraBrand);
+        aboutCard.addView(author);
+        aboutCard.addView(version);
         content.addView(aboutCard);
+    }
+
+    private void addRealSettingsToggle(LinearLayout parent, String label, boolean checked, ToggleCallback callback) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(8), 0, 0);
+
+        TextView title = textView(label, resolvePrimaryTextColor(), 14f);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(title);
+
+        CheckBox box = new CheckBox(this);
+        box.setChecked(checked);
+        box.setOnCheckedChangeListener((button, isChecked) -> callback.onToggle(isChecked));
+        row.addView(box);
+        parent.addView(row);
+    }
+
+    private interface ToggleCallback {
+        void onToggle(boolean checked);
     }
 
     private void renderSearch(String query) {
