@@ -73,6 +73,9 @@ public class MainActivity extends Activity {
     private boolean pureBlack = false;
     private int searchResultsIndex = 0;
     private int libraryResultsIndex = 0;
+    private String currentLibraryFilter = "Songs";
+    private String currentLibraryQuery = "";
+    private EditText librarySearchField;
     private final Handler searchUiHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearchRunnable;
 
@@ -877,14 +880,23 @@ public class MainActivity extends Activity {
         updateNavigationSelection();
         clearContent();
 
-        heading("Library", "Local + licensed online music.");
+        TextView headingText = textView("Library", resolvePrimaryTextColor(), 30f);
+        headingText.setTypeface(null, Typeface.BOLD);
+        headingText.setPadding(0, dp(6), 0, dp(8));
+        content.addView(headingText);
+
+        TextView subtitle = textView("Your collection, sorted by what you actually listen to.", resolveSecondaryTextColor(), 13f);
+        subtitle.setPadding(0, 0, 0, dp(18));
+        content.addView(subtitle);
 
         LinearLayout statRow = new LinearLayout(this);
         statRow.setOrientation(LinearLayout.HORIZONTAL);
         statRow.setPadding(0, dp(4), 0, dp(12));
 
-        String[] labels = {"Tracks", "Artists", "Playlists"};
-        int[] values = {Math.max(1, songs.size()), Math.max(1, Math.min(12, songs.size())), 4};
+        int uniqueArtists = countUniqueArtists();
+        int albumsCount = countUniqueAlbums();
+        String[] labels = {"Tracks", "Artists", "Albums"};
+        int[] values = {Math.max(0, songs.size()), Math.max(0, uniqueArtists), Math.max(0, albumsCount)};
 
         for (int i = 0; i < labels.length; i++) {
             LinearLayout stat = new LinearLayout(this);
@@ -904,21 +916,68 @@ public class MainActivity extends Activity {
         }
         content.addView(statRow);
 
+        LinearLayout searchWrap = new LinearLayout(this);
+        searchWrap.setOrientation(LinearLayout.HORIZONTAL);
+        searchWrap.setBackground(round(resolveSurfaceColor(), 22));
+        searchWrap.setPadding(dp(12), dp(8), dp(8), dp(8));
+        searchWrap.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageView searchIcon = new ImageView(this);
+        searchIcon.setImageResource(android.R.drawable.ic_menu_search);
+        searchIcon.setColorFilter(resolveSecondaryTextColor());
+        searchIcon.setLayoutParams(new LinearLayout.LayoutParams(dp(20), dp(20)));
+
+        librarySearchField = new EditText(this);
+        librarySearchField.setHint("Search your library");
+        librarySearchField.setSingleLine(true);
+        librarySearchField.setTextColor(resolvePrimaryTextColor());
+        librarySearchField.setHintTextColor(resolveSecondaryTextColor());
+        librarySearchField.setBackgroundColor(Color.TRANSPARENT);
+        librarySearchField.setTextSize(14f);
+        librarySearchField.setPadding(dp(10), dp(8), dp(10), dp(8));
+        librarySearchField.setText(currentLibraryQuery);
+        librarySearchField.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                currentLibraryQuery = s == null ? "" : s.toString();
+                renderLibrary(currentLibraryFilter);
+            }
+        });
+
+        Button clear = new Button(this);
+        clear.setText("Clear");
+        clear.setTextColor(accent);
+        clear.setBackgroundColor(Color.TRANSPARENT);
+        clear.setOnClickListener(v -> librarySearchField.setText(""));
+
+        searchWrap.addView(searchIcon, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        searchWrap.addView(librarySearchField, new LinearLayout.LayoutParams(0, -2, 1f));
+        searchWrap.addView(clear, new LinearLayout.LayoutParams(-2, -2));
+        content.addView(searchWrap, new LinearLayout.LayoutParams(-1, -2));
+
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setBackground(round(resolveSurfaceColor(), 18));
         toolbar.setPadding(dp(8), dp(8), dp(8), dp(8));
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
 
-        String[] tabs = {"Songs", "Albums", "Artists", "Playlists"};
+        List<String> tabs = new ArrayList<>();
+        tabs.add("Songs");
+        tabs.add("Albums");
+        tabs.add("Artists");
+
         for (String tab : tabs) {
-            TextView item = textView(tab, resolvePrimaryTextColor(), 12f);
-            item.setBackground(round(resolveSurfaceColor(), 999));
+            TextView item = textView(tab, tab.equals(currentLibraryFilter) ? Color.WHITE : resolvePrimaryTextColor(), 12f);
+            item.setBackground(tab.equals(currentLibraryFilter) ? round(accent, 999) : round(resolveSurfaceColor(), 999));
             item.setPadding(dp(14), dp(10), dp(14), dp(10));
-            item.setOnClickListener(v -> renderLibrary(tab));
+            item.setOnClickListener(v -> {
+                currentLibraryFilter = tab;
+                renderLibrary(tab);
+                updateLibraryTabs(toolbar);
+            });
             toolbar.addView(item, new LinearLayout.LayoutParams(-2, -2));
         }
-
         content.addView(toolbar);
 
         Button refresh = new Button(this);
@@ -927,12 +986,76 @@ public class MainActivity extends Activity {
         refresh.setBackground(round(accent, 16));
         refresh.setOnClickListener(v -> {
             loadLocalSongs();
+            currentLibraryFilter = "Songs";
+            currentLibraryQuery = "";
+            if (librarySearchField != null) {
+                librarySearchField.setText("");
+            }
             renderLibrary("Songs");
         });
-
         content.addView(refresh);
+
         libraryResultsIndex = content.getChildCount();
         renderLibrary("Songs");
+    }
+
+    private void updateLibraryTabs(LinearLayout toolbar) {
+        if (toolbar == null) {
+            return;
+        }
+        for (int i = 0; i < toolbar.getChildCount(); i++) {
+            View item = toolbar.getChildAt(i);
+            if (item instanceof TextView) {
+                String label = ((TextView) item).getText().toString();
+                boolean selected = label.equals(currentLibraryFilter);
+                item.setBackground(selected ? round(accent, 999) : round(resolveSurfaceColor(), 999));
+                ((TextView) item).setTextColor(selected ? Color.WHITE : resolvePrimaryTextColor());
+            }
+        }
+    }
+
+    private List<Song> filterSongsForLibrary(List<Song> source) {
+        if (source == null || source.isEmpty()) {
+            return new ArrayList<>();
+        }
+        String query = currentLibraryQuery == null ? "" : currentLibraryQuery.trim();
+        if (query.isEmpty()) {
+            return new ArrayList<>(source);
+        }
+        String lower = query.toLowerCase(Locale.US);
+        List<Song> matches = new ArrayList<>();
+        for (Song song : source) {
+            if (song.title.toLowerCase(Locale.US).contains(lower)
+                    || song.artist.toLowerCase(Locale.US).contains(lower)
+                    || (song.albumArtUri != null && song.albumArtUri.toLowerCase(Locale.US).contains(lower))) {
+                matches.add(song);
+            }
+        }
+        return matches;
+    }
+
+    private int countUniqueArtists() {
+        List<String> names = new ArrayList<>();
+        for (Song song : songs) {
+            String key = song.artist == null ? "Unknown Artist" : song.artist.trim();
+            if (!key.isEmpty() && !names.contains(key)) {
+                names.add(key);
+            }
+        }
+        return names.size();
+    }
+
+    private int countUniqueAlbums() {
+        List<String> keys = new ArrayList<>();
+        for (Song song : songs) {
+            String key = song.albumArtUri != null && !song.albumArtUri.trim().isEmpty()
+                    ? song.albumArtUri
+                    : song.artist + "::" + song.title;
+            if (!keys.contains(key)) {
+                keys.add(key);
+            }
+        }
+        return keys.size();
     }
 
     private void renderLibrary(String filter) {
@@ -940,112 +1063,279 @@ public class MainActivity extends Activity {
             content.removeViewAt(content.getChildCount() - 1);
         }
 
-        if (songs.isEmpty()) {
-            content.addView(emptyCard("No local tracks found yet. Grant music access or add a licensed stream."));
+        List<Song> filtered = filterSongsForLibrary(songs);
+        if (filtered.isEmpty()) {
+            content.addView(libraryEmptyState(currentLibraryQuery.trim().isEmpty()
+                    ? "No music is available in your library yet. Add tracks or grant access to your local music."
+                    : "No results match this search in your library."));
             return;
         }
 
         switch (filter) {
             case "Albums":
-                LinearLayout albums = new LinearLayout(this);
-                albums.setOrientation(LinearLayout.VERTICAL);
-                for (int i = 0; i < Math.min(8, songs.size()); i++) {
-                    Song song = songs.get(i);
-                    LinearLayout row = new LinearLayout(this);
-                    row.setOrientation(LinearLayout.HORIZONTAL);
-                    row.setGravity(Gravity.CENTER_VERTICAL);
-                    row.setPadding(dp(12), dp(8), dp(12), dp(8));
-                    row.setBackground(round(resolveSurfaceColor(), 18));
-                    row.setOnClickListener(v -> playSong(song));
-
-                    TextView art = textView("◉", resolvePrimaryTextColor(), 20f);
-                    art.setBackground(round(accent, 14));
-                    art.setGravity(Gravity.CENTER);
-                    art.setPadding(dp(12), dp(12), dp(12), dp(12));
-                    row.addView(art, new LinearLayout.LayoutParams(dp(42), dp(42)));
-
-                    LinearLayout info = new LinearLayout(this);
-                    info.setOrientation(LinearLayout.VERTICAL);
-                    info.setPadding(dp(12), 0, 0, 0);
-                    TextView title = textView(song.artist + " Collection", resolvePrimaryTextColor(), 15f);
-                    title.setTypeface(null, Typeface.BOLD);
-                    TextView subtitle = textView(song.title, resolveSecondaryTextColor(), 12f);
-                    info.addView(title);
-                    info.addView(subtitle);
-                    row.addView(info, new LinearLayout.LayoutParams(0, -2, 1f));
-                    albums.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                List<Song> albumList = new ArrayList<>();
+                List<String> albumKeys = new ArrayList<>();
+                for (Song song : filtered) {
+                    String key = song.albumArtUri != null && !song.albumArtUri.trim().isEmpty()
+                            ? song.albumArtUri
+                            : song.artist + "::" + song.title;
+                    if (!albumKeys.contains(key)) {
+                        albumKeys.add(key);
+                        albumList.add(song);
+                    }
                 }
-                content.addView(albums);
+
+                LinearLayout albumSection = new LinearLayout(this);
+                albumSection.setOrientation(LinearLayout.VERTICAL);
+                for (int i = 0; i < albumList.size(); i++) {
+                    Song song = albumList.get(i);
+                    albumSection.addView(buildLibraryAlbumRow(song, i), new LinearLayout.LayoutParams(-1, -2));
+                }
+                content.addView(albumSection);
                 break;
             case "Artists":
-                LinearLayout artists = new LinearLayout(this);
-                artists.setOrientation(LinearLayout.VERTICAL);
-                for (int i = 0; i < Math.min(8, songs.size()); i++) {
-                    Song song = songs.get(i);
-                    LinearLayout row = new LinearLayout(this);
-                    row.setOrientation(LinearLayout.HORIZONTAL);
-                    row.setGravity(Gravity.CENTER_VERTICAL);
-                    row.setPadding(dp(12), dp(8), dp(12), dp(8));
-                    row.setBackground(round(resolveSurfaceColor(), 18));
-                    row.setOnClickListener(v -> playSong(song));
-
-                    TextView art = textView(song.artist.substring(0, 1).toUpperCase(Locale.US), Color.WHITE, 18f);
-                    art.setBackground(round(accent, 14));
-                    art.setGravity(Gravity.CENTER);
-                    art.setPadding(dp(12), dp(12), dp(12), dp(12));
-                    row.addView(art, new LinearLayout.LayoutParams(dp(42), dp(42)));
-
-                    LinearLayout info = new LinearLayout(this);
-                    info.setOrientation(LinearLayout.VERTICAL);
-                    info.setPadding(dp(12), 0, 0, 0);
-                    TextView name = textView(song.artist, resolvePrimaryTextColor(), 15f);
-                    name.setTypeface(null, Typeface.BOLD);
-                    TextView count = textView("1 track in library", resolveSecondaryTextColor(), 12f);
-                    info.addView(name);
-                    info.addView(count);
-                    row.addView(info, new LinearLayout.LayoutParams(0, -2, 1f));
-                    artists.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                LinearLayout artistSection = new LinearLayout(this);
+                artistSection.setOrientation(LinearLayout.VERTICAL);
+                List<String> artistNames = new ArrayList<>();
+                for (Song song : filtered) {
+                    String artist = song.artist == null || song.artist.trim().isEmpty() ? "Unknown Artist" : song.artist.trim();
+                    if (!artistNames.contains(artist)) {
+                        artistNames.add(artist);
+                    }
                 }
-                content.addView(artists);
-                break;
-            case "Playlists":
-                LinearLayout playlists = new LinearLayout(this);
-                playlists.setOrientation(LinearLayout.VERTICAL);
-                String[] playlistNames = {"Favorites", "Fresh Finds", "Offline Mix", "Night Drive"};
-                for (int i = 0; i < playlistNames.length; i++) {
-                    LinearLayout row = new LinearLayout(this);
-                    row.setOrientation(LinearLayout.HORIZONTAL);
-                    row.setGravity(Gravity.CENTER_VERTICAL);
-                    row.setPadding(dp(12), dp(10), dp(12), dp(10));
-                    row.setBackground(round(resolveSurfaceColor(), 18));
-                    TextView art = textView(String.valueOf(i + 1), Color.WHITE, 18f);
-                    art.setBackground(round(accent, 14));
-                    art.setGravity(Gravity.CENTER);
-                    art.setPadding(dp(12), dp(12), dp(12), dp(12));
-                    row.addView(art, new LinearLayout.LayoutParams(dp(42), dp(42)));
-                    LinearLayout info = new LinearLayout(this);
-                    info.setOrientation(LinearLayout.VERTICAL);
-                    info.setPadding(dp(12), 0, 0, 0);
-                    TextView name = textView(playlistNames[i], resolvePrimaryTextColor(), 15f);
-                    name.setTypeface(null, Typeface.BOLD);
-                    TextView count = textView(Math.min(10, songs.size()) + " tracks", resolveSecondaryTextColor(), 12f);
-                    info.addView(name);
-                    info.addView(count);
-                    row.addView(info, new LinearLayout.LayoutParams(0, -2, 1f));
-                    playlists.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                for (int i = 0; i < artistNames.size(); i++) {
+                    final String artist = artistNames.get(i);
+                    int count = 0;
+                    Song sample = null;
+                    for (Song song : filtered) {
+                        if (song.artist != null && song.artist.equals(artist)) {
+                            count++;
+                            if (sample == null) {
+                                sample = song;
+                            }
+                        }
+                    }
+                    if (sample != null) {
+                        artistSection.addView(buildLibraryArtistRow(sample, artist, count, i), new LinearLayout.LayoutParams(-1, -2));
+                    }
                 }
-                content.addView(playlists);
+                content.addView(artistSection);
                 break;
             case "Songs":
             default:
                 LinearLayout songsList = new LinearLayout(this);
                 songsList.setOrientation(LinearLayout.VERTICAL);
-                for (Song song : songs) {
-                    songsList.addView(songRow(song), new LinearLayout.LayoutParams(-1, compactHeight));
+                for (int i = 0; i < filtered.size(); i++) {
+                    View row = buildLibraryTrackRow(filtered.get(i), i);
+                    songsList.addView(row, new LinearLayout.LayoutParams(-1, -2));
                 }
                 content.addView(songsList);
                 break;
         }
+    }
+
+    private View libraryEmptyState(String message) {
+        LinearLayout emptyState = new LinearLayout(this);
+        emptyState.setOrientation(LinearLayout.VERTICAL);
+        emptyState.setPadding(dp(18), dp(18), dp(18), dp(18));
+        emptyState.setBackground(round(resolveSurfaceColor(), 22));
+
+        TextView title = textView("Nothing here yet", resolvePrimaryTextColor(), 16f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, dp(8));
+
+        TextView body = textView(message, resolveSecondaryTextColor(), 13f);
+        emptyState.addView(title);
+        emptyState.addView(body);
+        return emptyState;
+    }
+
+    private View buildLibraryTrackRow(final Song song, int index) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setBackground(round(resolveSurfaceColor(), 18));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, dp(8));
+        row.setLayoutParams(params);
+        row.setOnClickListener(v -> playSong(song));
+        row.setAlpha(0f);
+        row.setTranslationY(dp(8));
+        row.animate().alpha(1f).translationY(0f).setDuration(120 + (index * 18)).start();
+
+        FrameLayout artWrap = new FrameLayout(this);
+        artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(52), dp(52)));
+        artWrap.setBackground(round(accent, 16));
+
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        art.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        Bitmap artBitmap = loadArtworkBitmap(song.albumArtUri, dp(52));
+        if (artBitmap != null) {
+            art.setImageBitmap(artBitmap);
+        }
+        artWrap.addView(art);
+
+        TextView fallback = textView(
+                song.title != null && !song.title.isEmpty() ? String.valueOf(song.title.charAt(0)).toUpperCase(Locale.US) : "V",
+                Color.WHITE,
+                18f
+        );
+        fallback.setGravity(Gravity.CENTER);
+        fallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        if (artBitmap == null) {
+            artWrap.addView(fallback);
+        }
+
+        LinearLayout textWrap = new LinearLayout(this);
+        textWrap.setOrientation(LinearLayout.VERTICAL);
+        textWrap.setPadding(dp(12), 0, dp(8), 0);
+        textWrap.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView title = textView(song.title, resolvePrimaryTextColor(), 15f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        TextView artist = textView(song.artist, resolveSecondaryTextColor(), 12f);
+        artist.setSingleLine(true);
+        artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        textWrap.addView(title);
+        textWrap.addView(artist);
+
+        Button playButton = new Button(this);
+        playButton.setText("▶");
+        playButton.setTextColor(Color.WHITE);
+        playButton.setTextSize(14f);
+        playButton.setBackground(round(accent, 999));
+        playButton.setOnClickListener(v -> playSong(song));
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(38), dp(38));
+        buttonParams.setMargins(0, 0, 0, 0);
+        playButton.setLayoutParams(buttonParams);
+
+        row.addView(artWrap);
+        row.addView(textWrap);
+        row.addView(playButton);
+        return row;
+    }
+
+    private View buildLibraryAlbumRow(final Song song, int index) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setBackground(round(resolveSurfaceColor(), 18));
+        row.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        row.setOnClickListener(v -> playSong(song));
+
+        FrameLayout artWrap = new FrameLayout(this);
+        artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(54), dp(54)));
+        artWrap.setBackground(round(accent, 16));
+
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        art.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        Bitmap artBitmap = loadArtworkBitmap(song.albumArtUri, dp(54));
+        if (artBitmap != null) {
+            art.setImageBitmap(artBitmap);
+        }
+        artWrap.addView(art);
+
+        TextView fallback = textView(
+                song.title != null && !song.title.isEmpty() ? String.valueOf(song.title.charAt(0)).toUpperCase(Locale.US) : "V",
+                Color.WHITE,
+                18f
+        );
+        fallback.setGravity(Gravity.CENTER);
+        fallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        if (artBitmap == null) {
+            artWrap.addView(fallback);
+        }
+
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(dp(12), 0, dp(10), 0);
+        info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView title = textView(song.title, resolvePrimaryTextColor(), 15f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        TextView subtitle = textView(song.artist, resolveSecondaryTextColor(), 12f);
+        subtitle.setSingleLine(true);
+        subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        info.addView(title);
+        info.addView(subtitle);
+
+        Button play = new Button(this);
+        play.setText("▶");
+        play.setTextColor(Color.WHITE);
+        play.setTextSize(14f);
+        play.setBackground(round(accent, 999));
+        play.setOnClickListener(v -> playSong(song));
+        play.setLayoutParams(new LinearLayout.LayoutParams(dp(38), dp(38)));
+
+        row.addView(artWrap);
+        row.addView(info);
+        row.addView(play);
+        return row;
+    }
+
+    private View buildLibraryArtistRow(final Song sample, final String artist, int trackCount, int index) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setBackground(round(resolveSurfaceColor(), 18));
+        row.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        row.setOnClickListener(v -> playSong(sample));
+
+        FrameLayout artWrap = new FrameLayout(this);
+        artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(54), dp(54)));
+        artWrap.setBackground(round(accent, 16));
+
+        TextView letter = textView(
+                artist != null && !artist.isEmpty() ? String.valueOf(artist.charAt(0)).toUpperCase(Locale.US) : "V",
+                Color.WHITE,
+                20f
+        );
+        letter.setGravity(Gravity.CENTER);
+        letter.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        artWrap.addView(letter);
+
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(dp(12), 0, dp(10), 0);
+        info.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView title = textView(artist, resolvePrimaryTextColor(), 15f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        TextView count = textView(trackCount + " track" + (trackCount == 1 ? "" : "s") + " in library", resolveSecondaryTextColor(), 12f);
+        count.setSingleLine(true);
+        count.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        info.addView(title);
+        info.addView(count);
+
+        Button play = new Button(this);
+        play.setText("▶");
+        play.setTextColor(Color.WHITE);
+        play.setTextSize(14f);
+        play.setBackground(round(accent, 999));
+        play.setOnClickListener(v -> playSong(sample));
+        play.setLayoutParams(new LinearLayout.LayoutParams(dp(38), dp(38)));
+
+        row.addView(artWrap);
+        row.addView(info);
+        row.addView(play);
+        return row;
     }
 
     private void showCustomise() {
