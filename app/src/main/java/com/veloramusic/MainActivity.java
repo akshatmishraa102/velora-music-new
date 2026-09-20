@@ -6,6 +6,8 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -18,6 +20,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -38,7 +41,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -49,6 +51,7 @@ public class MainActivity extends Activity {
 
     private final List<Song> songs = new ArrayList<>();
     private final List<Song> recentlyPlayed = new ArrayList<>();
+    private Song currentSong;
 
     private MediaController controller;
     private TextView nowTitle;
@@ -302,10 +305,29 @@ public class MainActivity extends Activity {
         miniBg.setStroke(dp(1), resolveCardStrokeColor());
         bar.setBackground(miniBg);
 
-        TextView art = textView("♫", Color.WHITE, 22f);
-        art.setGravity(Gravity.CENTER);
-        art.setBackground(round(accent, 18));
-        art.setPadding(dp(10), dp(10), dp(10), dp(10));
+        FrameLayout artWrap = new FrameLayout(this);
+        artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(52), dp(52)));
+        artWrap.setBackground(round(accent, 18));
+
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        art.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        Bitmap artBitmap = loadArtworkBitmap(currentSong != null ? currentSong.albumArtUri : null, dp(52));
+        if (artBitmap != null) {
+            art.setImageBitmap(artBitmap);
+        } else {
+            TextView artFallback = textView(
+                    currentSong != null && currentSong.title != null && !currentSong.title.isEmpty()
+                            ? String.valueOf(currentSong.title.charAt(0)).toUpperCase(Locale.US)
+                            : "V",
+                    Color.WHITE,
+                    18f
+            );
+            artFallback.setGravity(Gravity.CENTER);
+            artFallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+            artWrap.addView(artFallback);
+        }
+        artWrap.addView(art);
 
         LinearLayout textBox = new LinearLayout(this);
         textBox.setOrientation(LinearLayout.VERTICAL);
@@ -342,7 +364,7 @@ public class MainActivity extends Activity {
         queueButton.setPadding(dp(8), dp(8), dp(8), dp(8));
         queueButton.setOnClickListener(v -> startActivity(new Intent(this, PlayerActivity.class)));
 
-        bar.addView(art, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        bar.addView(artWrap);
         bar.addView(textBox, new LinearLayout.LayoutParams(0, -2, 1f));
         bar.addView(playButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
         bar.addView(queueButton, new LinearLayout.LayoutParams(dp(40), dp(40)));
@@ -597,8 +619,12 @@ public class MainActivity extends Activity {
         insightRow.setOrientation(LinearLayout.HORIZONTAL);
         insightRow.setPadding(0, dp(10), 0, dp(4));
 
-        String[] insightTitles = {"Listening", "Saves", "Mood"};
-        String[] insightValues = {String.valueOf(Math.max(12, songs.size())), "4.8k", "Warm"};
+        String[] insightTitles = {"Tracks", "Recent", "Artists"};
+        String[] insightValues = {
+                String.valueOf(Math.max(0, songs.size())),
+                String.valueOf(Math.min(8, Math.max(0, recentlyPlayed.size()))),
+                String.valueOf(Math.max(1, Math.min(12, songs.size())))
+        };
         for (int i = 0; i < insightTitles.length; i++) {
             LinearLayout insightCard = new LinearLayout(this);
             insightCard.setOrientation(LinearLayout.VERTICAL);
@@ -660,16 +686,34 @@ public class MainActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(10), dp(10), dp(10), dp(10));
         card.setBackground(round(resolveSurfaceColor(), 20));
-        card.setBackgroundDrawable(round(resolveSurfaceColor(), 20));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(170), -2);
         params.setMargins(0, 0, dp(12), 0);
         card.setLayoutParams(params);
 
-        TextView art = textView(song.title.substring(0, 1).toUpperCase(Locale.US), Color.WHITE, 24f);
-        art.setGravity(Gravity.CENTER);
-        art.setBackground(round(strongAccent ? accent : Color.argb(165, 255, 255, 255), 18));
-        art.setPadding(dp(12), dp(12), dp(12), dp(12));
-        art.setLayoutParams(new LinearLayout.LayoutParams(dp(150), dp(150)));
+        FrameLayout artWrap = new FrameLayout(this);
+        artWrap.setLayoutParams(new LinearLayout.LayoutParams(dp(150), dp(150)));
+        artWrap.setPadding(0, 0, 0, dp(6));
+        artWrap.setBackground(round(strongAccent ? accent : Color.argb(165, 255, 255, 255), 18));
+
+        ImageView artImage = new ImageView(this);
+        artImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        artImage.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        Bitmap albumArt = loadArtworkBitmap(song.albumArtUri, dp(150));
+        if (albumArt != null) {
+            artImage.setImageBitmap(albumArt);
+        }
+        artWrap.addView(artImage);
+
+        TextView fallback = textView(
+                song.title != null && !song.title.isEmpty() ? String.valueOf(song.title.charAt(0)).toUpperCase(Locale.US) : "V",
+                Color.WHITE,
+                24f
+        );
+        fallback.setGravity(Gravity.CENTER);
+        fallback.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        if (albumArt == null) {
+            artWrap.addView(fallback);
+        }
 
         TextView title = textView(song.title, resolvePrimaryTextColor(), 14f);
         title.setTypeface(null, Typeface.BOLD);
@@ -681,7 +725,7 @@ public class MainActivity extends Activity {
         artist.setSingleLine(true);
         artist.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
-        card.addView(art);
+        card.addView(artWrap);
         card.addView(title);
         card.addView(artist);
         card.setOnClickListener(v -> playSong(song));
@@ -1243,6 +1287,7 @@ public class MainActivity extends Activity {
             return;
         }
 
+        currentSong = song;
         MediaItem item =
                 new MediaItem.Builder()
                         .setUri(Uri.parse(song.uri))
@@ -1514,6 +1559,9 @@ public class MainActivity extends Activity {
     }
 
     private Song getCurrentSongFromPlayer() {
+        if (currentSong != null) {
+            return currentSong;
+        }
         if (controller == null || controller.getCurrentMediaItem() == null) {
             return recentlyPlayed.isEmpty() ? (songs.isEmpty() ? null : songs.get(0)) : recentlyPlayed.get(0);
         }
@@ -1528,18 +1576,20 @@ public class MainActivity extends Activity {
         String uri = current.localConfiguration != null && current.localConfiguration.uri != null
                 ? current.localConfiguration.uri.toString()
                 : "";
-        return new Song(
+        currentSong = new Song(
                 title == null ? "Unknown Song" : title.toString(),
                 artist == null ? "Unknown Artist" : artist.toString(),
                 uri,
                 false
         );
+        return currentSong;
     }
 
     private void updateNowPlayingUi() {
         if (nowTitle != null) {
             Song current = getCurrentSongFromPlayer();
             if (current != null) {
+                currentSong = current;
                 nowTitle.setText(current.title);
                 nowArtist.setText(current.artist);
             } else {
@@ -1570,6 +1620,30 @@ public class MainActivity extends Activity {
         while (recentlyPlayed.size() > 8) {
             recentlyPlayed.remove(recentlyPlayed.size() - 1);
         }
+    }
+
+    private Bitmap loadArtworkBitmap(String artUri, int size) {
+        if (artUri == null || artUri.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            Uri uri = Uri.parse(artUri);
+            if ("content".equalsIgnoreCase(uri.getScheme())) {
+                try (java.io.InputStream stream = getContentResolver().openInputStream(uri)) {
+                    if (stream == null) {
+                        return null;
+                    }
+                    Bitmap bitmap = BitmapFactory.decodeStream(stream);
+                    if (bitmap == null) {
+                        return null;
+                    }
+                    return Bitmap.createScaledBitmap(bitmap, size, size, true);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private static class Song {

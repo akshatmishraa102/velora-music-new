@@ -45,6 +45,12 @@ public class PlayerActivity extends Activity {
     private String currentTheme = "dark";
     private boolean pureBlack = false;
     private int accent = Color.rgb(184, 167, 255);
+    private int artworkRadius = 30;
+    private boolean artworkAnimationEnabled = true;
+    private boolean swipeGestureEnabled = true;
+    private boolean dynamicAlbumAccentEnabled = true;
+    private boolean qualityBadgeVisible = true;
+    private String progressStyle = "smooth";
 
     private FrameLayout root;
     private View darkOverlay;
@@ -81,9 +87,7 @@ public class PlayerActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         preferences = getSharedPreferences(VeloraThemeManager.PREF_NAME, MODE_PRIVATE);
-        currentTheme = VeloraThemeManager.normalizeTheme(preferences.getString(VeloraThemeManager.KEY_THEME, "dark"));
-        pureBlack = preferences.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
-        accent = preferences.getInt(VeloraThemeManager.KEY_ACCENT, accent);
+        loadPlayerSettings();
 
         Window window = getWindow();
         window.setStatusBarColor(Color.rgb(8, 8, 11));
@@ -136,6 +140,18 @@ public class PlayerActivity extends Activity {
     private TextView lyricsAction;
     private TextView queueAction;
     private TextView moreAction;
+
+    private void loadPlayerSettings() {
+        currentTheme = VeloraThemeManager.normalizeTheme(preferences.getString(VeloraThemeManager.KEY_THEME, "dark"));
+        pureBlack = preferences.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false);
+        accent = preferences.getInt(VeloraThemeManager.KEY_ACCENT, accent);
+        artworkRadius = VeloraThemeManager.normalizeArtworkRadius(preferences.getInt(VeloraThemeManager.KEY_PLAYER_ARTWORK_RADIUS, 30));
+        artworkAnimationEnabled = preferences.getBoolean(VeloraThemeManager.KEY_PLAYER_ARTWORK_ANIMATION, true);
+        swipeGestureEnabled = preferences.getBoolean(VeloraThemeManager.KEY_PLAYER_SWIPE_GESTURE, true);
+        dynamicAlbumAccentEnabled = preferences.getBoolean(VeloraThemeManager.KEY_PLAYER_DYNAMIC_ACCENT, true);
+        progressStyle = preferences.getString(VeloraThemeManager.KEY_PLAYER_PROGRESS_STYLE, "smooth");
+        qualityBadgeVisible = preferences.getBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, true);
+    }
 
     private void buildPlayerUi() {
 
@@ -291,7 +307,7 @@ public class PlayerActivity extends Activity {
 
         artwork = new ImageView(this);
         artwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        artwork.setBackground(roundedBackground(Color.rgb(31, 30, 40), 30));
+        artwork.setBackground(roundedBackground(Color.rgb(31, 30, 40), artworkRadius));
         artwork.setClipToOutline(true);
         artwork.setImageDrawable(null);
         artwork.setOnTouchListener(new View.OnTouchListener() {
@@ -299,6 +315,9 @@ public class PlayerActivity extends Activity {
 
             @Override
             public boolean onTouch(View v, android.view.MotionEvent event) {
+                if (!swipeGestureEnabled) {
+                    return false;
+                }
                 switch (event.getActionMasked()) {
                     case android.view.MotionEvent.ACTION_DOWN:
                         downX = event.getX();
@@ -312,16 +331,18 @@ public class PlayerActivity extends Activity {
                             } else {
                                 controller.seekToPreviousMediaItem();
                             }
-                            artwork.animate()
-                                    .scaleX(0.96f)
-                                    .scaleY(0.96f)
-                                    .setDuration(90)
-                                    .withEndAction(() -> artwork.animate()
-                                            .scaleX(1f)
-                                            .scaleY(1f)
-                                            .setDuration(150)
-                                            .start())
-                                    .start();
+                            if (artworkAnimationEnabled) {
+                                artwork.animate()
+                                        .scaleX(0.96f)
+                                        .scaleY(0.96f)
+                                        .setDuration(90)
+                                        .withEndAction(() -> artwork.animate()
+                                                .scaleX(1f)
+                                                .scaleY(1f)
+                                                .setDuration(150)
+                                                .start())
+                                        .start();
+                            }
                             return true;
                         }
                         return true;
@@ -374,6 +395,7 @@ public class PlayerActivity extends Activity {
         qualityBadge.setBackground(roundedBackground(Color.argb(38, 219, 214, 255), 18));
         qualityBadge.setPadding(dp(10), dp(6), dp(10), dp(6));
         qualityBadge.setGravity(Gravity.CENTER);
+        qualityBadge.setVisibility(qualityBadgeVisible ? View.VISIBLE : View.GONE);
 
         favoriteButton = labelText("♡", 26, Color.WHITE);
         favoriteButton.setBackground(roundedBackground(Color.argb(20, 255, 255, 255), 18));
@@ -399,7 +421,7 @@ public class PlayerActivity extends Activity {
         progress.setMax(1000);
         progress.setProgress(0);
         progress.setPadding(0, 0, 0, 0);
-        progress.setThumbOffset(dp(6));
+        progress.setThumbOffset(VeloraThemeManager.isProgressStyleMinimal(progressStyle) ? dp(2) : dp(6));
         progress.setBackground(null);
         progress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -952,6 +974,7 @@ public class PlayerActivity extends Activity {
                     bitmap
             );
 
+            artwork.setBackground(roundedBackground(Color.rgb(31, 30, 40), artworkRadius));
             applyArtworkTint(
                     bitmap
             );
@@ -1032,6 +1055,10 @@ public class PlayerActivity extends Activity {
                 clamp(avgB + 16, 0, 255)
         );
 
+        if (!dynamicAlbumAccentEnabled) {
+            accent = this.accent;
+        }
+
         int deep = Color.rgb(
                 clamp(avgR / 3, 0, 64),
                 clamp(avgG / 3, 0, 64),
@@ -1078,6 +1105,7 @@ public class PlayerActivity extends Activity {
                     Color.argb(255, Math.min(14, Color.red(deep)), Math.min(14, Color.green(deep)), Math.min(20, Color.blue(deep)))
             );
         }
+        artwork.setBackground(roundedBackground(Color.rgb(31, 30, 40), artworkRadius));
     }
 
     private void resetBackgroundTint() {

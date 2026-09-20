@@ -43,13 +43,42 @@ public class AppearanceSettingsActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(0, dp(12), 0, 0);
 
+        TextView themeTitle = sectionTitle("Theme");
+        content.addView(themeTitle);
+        addThemeChoice(content, "Dark", "dark");
+        addThemeChoice(content, "AMOLED", "amoled");
+        addThemeChoice(content, "Light", "light");
+        addThemeChoice(content, "Auto", "auto");
+
+        TextView accentTitle = sectionTitle("Accent");
+        content.addView(accentTitle);
+        LinearLayout accentRow = new LinearLayout(this);
+        accentRow.setOrientation(LinearLayout.HORIZONTAL);
+        accentRow.setGravity(Gravity.CENTER_VERTICAL);
+        accentRow.setPadding(dp(12), dp(4), dp(12), dp(12));
+        for (int accent : VeloraThemeManager.ACCENT_COLORS) {
+            View chip = new View(this);
+            chip.setBackgroundColor(accent);
+            int size = dp(30);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+            params.setMargins(0, 0, dp(10), 0);
+            chip.setOnClickListener(v -> {
+                prefs.edit().putInt(VeloraThemeManager.KEY_ACCENT, accent).apply();
+                finish();
+            });
+            accentRow.addView(chip, params);
+        }
+        content.addView(accentRow);
+
+        TextView optionsTitle = sectionTitle("Options");
+        content.addView(optionsTitle);
         addToggleRow(content, "Dynamic theme", prefs.getBoolean(VeloraThemeManager.KEY_DYNAMIC_THEME, true),
                 (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_DYNAMIC_THEME, checked).apply());
         addToggleRow(content, "Pure black mode", prefs.getBoolean(VeloraThemeManager.KEY_PURE_BLACK, false),
                 (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_PURE_BLACK, checked).apply());
         addToggleRow(content, "High refresh rate", prefs.getBoolean(VeloraThemeManager.KEY_HIGH_REFRESH_RATE, true),
                 (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_HIGH_REFRESH_RATE, checked).apply());
-        addToggleRow(content, "Show quality badge", prefs.getBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, false),
+        addToggleRow(content, "Show quality badge", prefs.getBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, true),
                 (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_SHOW_QUALITY_BADGE, checked).apply());
         addToggleRow(content, "Use new player design", prefs.getBoolean(VeloraThemeManager.KEY_USE_NEW_PLAYER_DESIGN, true),
                 (checked) -> prefs.edit().putBoolean(VeloraThemeManager.KEY_USE_NEW_PLAYER_DESIGN, checked).apply());
@@ -58,6 +87,30 @@ public class AppearanceSettingsActivity extends Activity {
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         setContentView(root);
+    }
+
+    private void addThemeChoice(LinearLayout parent, String label, String theme) {
+        TextView row = new TextView(this);
+        row.setText(label);
+        row.setTextColor(Color.WHITE);
+        row.setTextSize(15);
+        row.setPadding(dp(12), dp(12), dp(12), dp(12));
+        row.setBackgroundColor(Color.argb(22, 255, 255, 255));
+        row.setOnClickListener(v -> {
+            prefs.edit().putString(VeloraThemeManager.KEY_THEME, theme).apply();
+            finish();
+        });
+        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private TextView sectionTitle(String title) {
+        TextView text = new TextView(this);
+        text.setText(title);
+        text.setTextColor(Color.argb(225, 255, 255, 255));
+        text.setTextSize(16);
+        text.setTypeface(null, android.graphics.Typeface.BOLD);
+        text.setPadding(dp(12), dp(20), dp(12), dp(8));
+        return text;
     }
 
     private void addToggleRow(LinearLayout parent, String title, boolean checked, ToggleChangeListener listener) {

@@ -17,6 +17,12 @@ public final class VeloraThemeManager {
     public static final String KEY_RESUME_ON_BLUETOOTH = "resume_on_bluetooth";
     public static final String KEY_USE_NEW_PLAYER_DESIGN = "use_new_player_design";
     public static final String KEY_ENABLE_CROSSFADE = "crossfade_enabled";
+    public static final String KEY_PLAYER_ARTWORK_RADIUS = "player_artwork_radius";
+    public static final String KEY_PLAYER_ARTWORK_ANIMATION = "player_artwork_animation";
+    public static final String KEY_PLAYER_SWIPE_GESTURE = "player_swipe_gesture";
+    public static final String KEY_PLAYER_DYNAMIC_ACCENT = "player_dynamic_accent";
+    public static final String KEY_PLAYER_PROGRESS_STYLE = "player_progress_style";
+    public static final String KEY_PLAYER_USE_ALBUM_ACCENT = "player_use_album_accent";
 
     public static final int[] ACCENT_COLORS = new int[] {
             Color.rgb(184, 167, 255),
@@ -102,5 +108,19 @@ public final class VeloraThemeManager {
             return nightMode ? Color.rgb(172, 176, 186) : Color.rgb(90, 97, 114);
         }
         return Color.rgb(172, 176, 186);
+    }
+
+    public static int normalizeArtworkRadius(int value) {
+        if (value < 12) {
+            return 12;
+        }
+        if (value > 48) {
+            return 48;
+        }
+        return value;
+    }
+
+    public static boolean isProgressStyleMinimal(String value) {
+        return "minimal".equalsIgnoreCase(value);
     }
 }

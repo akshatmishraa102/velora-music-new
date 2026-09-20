@@ -23,43 +23,53 @@ public class AboutActivity extends Activity {
         root.setPadding(dp(20), dp(24), dp(20), dp(24));
 
         TextView title = new TextView(this);
-        title.setText("Velora Music");
+        title.setText("VELORA");
         title.setTextColor(Color.WHITE);
-        title.setTextSize(28);
+        title.setTextSize(26);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
-        TextView description = new TextView(this);
-        description.setText("Lightweight local-player experience built with Java + Media3, inspired by Vivi’s premium layout and stateful player flow.");
-        description.setTextColor(Color.argb(210, 236, 236, 240));
-        description.setTextSize(15);
-        description.setPadding(0, dp(10), 0, dp(18));
-        description.setLineSpacing(0, 1.25f);
-        root.addView(description);
+        TextView appName = new TextView(this);
+        appName.setText("Velora Music");
+        appName.setTextColor(Color.WHITE);
+        appName.setTextSize(22);
+        appName.setTypeface(null, android.graphics.Typeface.BOLD);
+        appName.setPadding(0, dp(8), 0, dp(18));
+        appName.setGravity(Gravity.CENTER);
+        root.addView(appName);
 
         TextView developer = new TextView(this);
         developer.setText("Developer: Akshat Mishra");
-        developer.setTextColor(Color.WHITE);
+        developer.setTextColor(Color.argb(220, 255, 255, 255));
         developer.setTextSize(16);
+        developer.setPadding(0, dp(8), 0, dp(8));
         root.addView(developer);
 
         TextView handle = new TextView(this);
         handle.setText("Instagram: @akshat.mishra102");
         handle.setTextColor(Color.rgb(184, 167, 255));
         handle.setTextSize(15);
-        handle.setPadding(0, dp(8), 0, dp(22));
+        handle.setPadding(0, dp(4), 0, dp(12));
         root.addView(handle);
 
-        Button ig = new Button(this);
-        ig.setText("Open Instagram");
-        ig.setOnClickListener(v -> openUrl(INSTAGRAM_URL));
-        root.addView(ig);
+        TextView urlLabel = new TextView(this);
+        urlLabel.setText("Instagram URL:");
+        urlLabel.setTextColor(Color.argb(220, 255, 255, 255));
+        urlLabel.setTextSize(14);
+        root.addView(urlLabel);
 
-        Button source = new Button(this);
-        source.setText("Open source / project info");
-        source.setOnClickListener(v -> openUrl("https://github.com/"));
-        root.addView(source);
+        TextView url = new TextView(this);
+        url.setText(INSTAGRAM_URL);
+        url.setTextColor(Color.argb(210, 185, 200, 255));
+        url.setTextSize(13);
+        url.setPadding(0, dp(6), 0, dp(18));
+        root.addView(url);
+
+        Button open = new Button(this);
+        open.setText("Open Instagram");
+        open.setOnClickListener(v -> openUrl(INSTAGRAM_URL));
+        root.addView(open);
 
         Button close = new Button(this);
         close.setText("Back");
