@@ -1255,11 +1255,443 @@ public class PlayerActivity extends Activity {
     }
 
     private void showQueue() {
-        showQueueSheet();
+        showPlayerMode(true);
     }
 
     private void showLyrics() {
-        showLyricsSheet();
+        showPlayerMode(false);
+    }
+
+    private void showPlayerMode(boolean queueMode) {
+
+        if (controller == null ||
+                controller.getCurrentMediaItem() == null) {
+            showMessage(
+                    queueMode ? "Queue" : "Lyrics",
+                    "Nothing is playing."
+            );
+            return;
+        }
+
+        FrameLayout overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(Color.rgb(7, 7, 10));
+        overlay.setAlpha(0f);
+
+        ImageView backdrop = new ImageView(this);
+        backdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        backdrop.setAlpha(0.20f);
+
+        if (backgroundArtwork.getDrawable() != null) {
+            backdrop.setImageDrawable(backgroundArtwork.getDrawable());
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            backdrop.setRenderEffect(
+                    android.graphics.RenderEffect.createBlurEffect(
+                            dp(45),
+                            dp(45),
+                            android.graphics.Shader.TileMode.CLAMP
+                    )
+            );
+        }
+
+        overlay.addView(
+                backdrop,
+                new FrameLayout.LayoutParams(-1, -1)
+        );
+
+        View dark = new View(this);
+        dark.setBackgroundColor(Color.argb(205, 7, 7, 10));
+
+        overlay.addView(
+                dark,
+                new FrameLayout.LayoutParams(-1, -1)
+        );
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(
+                dp(20),
+                dp(10),
+                dp(20),
+                dp(12)
+        );
+
+        LinearLayout handleRow = new LinearLayout(this);
+        handleRow.setGravity(Gravity.CENTER);
+
+        View handle = new View(this);
+        GradientDrawable handleBg = new GradientDrawable();
+        handleBg.setColor(Color.argb(150, 245, 245, 250));
+        handleBg.setCornerRadius(dp(5));
+        handle.setBackground(handleBg);
+
+        handleRow.addView(
+                handle,
+                new LinearLayout.LayoutParams(dp(48), dp(6))
+        );
+
+        content.addView(
+                handleRow,
+                new LinearLayout.LayoutParams(-1, dp(34))
+        );
+
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageButton close = iconButton(
+                android.R.drawable.ic_menu_close_clear_cancel
+        );
+
+        close.setOnClickListener(v ->
+                overlay.animate()
+                        .alpha(0f)
+                        .setDuration(180)
+                        .withEndAction(() -> root.removeView(overlay))
+                        .start()
+        );
+
+        top.addView(
+                close,
+                new LinearLayout.LayoutParams(dp(48), dp(48))
+        );
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.VERTICAL);
+        heading.setGravity(Gravity.CENTER);
+
+        TextView modeTitle = labelText(
+                queueMode ? "QUEUE" : "LYRICS",
+                11,
+                Color.rgb(225, 225, 232)
+        );
+
+        TextView songHeading = labelText(
+                title.getText().toString(),
+                9,
+                Color.rgb(145, 145, 155)
+        );
+
+        heading.addView(modeTitle);
+        heading.addView(songHeading);
+
+        top.addView(
+                heading,
+                new LinearLayout.LayoutParams(0, dp(48), 1)
+        );
+
+        ImageButton more = iconButton(
+                android.R.drawable.ic_menu_more
+        );
+
+        more.setOnClickListener(v -> showPlayerOptions());
+
+        top.addView(
+                more,
+                new LinearLayout.LayoutParams(dp(48), dp(48))
+        );
+
+        content.addView(
+                top,
+                new LinearLayout.LayoutParams(-1, dp(58))
+        );
+
+        if (queueMode) {
+
+            android.widget.ScrollView scroll =
+                    new android.widget.ScrollView(this);
+
+            LinearLayout queue =
+                    new LinearLayout(this);
+
+            queue.setOrientation(LinearLayout.VERTICAL);
+            queue.setPadding(0, dp(18), 0, dp(30));
+
+            int count = controller.getMediaItemCount();
+            int current = controller.getCurrentMediaItemIndex();
+
+            for (int i = 0; i < count; i++) {
+
+                final int queueIndex = i;
+
+                androidx.media3.common.MediaItem item =
+                        controller.getMediaItemAt(i);
+
+                String itemTitle =
+                        item.mediaMetadata.title != null
+                                ? item.mediaMetadata.title.toString()
+                                : "Unknown title";
+
+                String itemArtist =
+                        item.mediaMetadata.artist != null
+                                ? item.mediaMetadata.artist.toString()
+                                : "Unknown artist";
+
+                LinearLayout row =
+                        new LinearLayout(this);
+
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(
+                        dp(10),
+                        dp(8),
+                        dp(10),
+                        dp(8)
+                );
+
+                GradientDrawable rowBg =
+                        new GradientDrawable();
+
+                rowBg.setCornerRadius(dp(18));
+
+                if (i == current) {
+                    rowBg.setColor(Color.argb(48, 190, 165, 255));
+                } else {
+                    rowBg.setColor(Color.argb(18, 255, 255, 255));
+                }
+
+                row.setBackground(rowBg);
+
+                ImageView art =
+                        new ImageView(this);
+
+                art.setScaleType(
+                        ImageView.ScaleType.CENTER_CROP
+                );
+
+                byte[] data =
+                        item.mediaMetadata.artworkData;
+
+                if (data != null) {
+                    android.graphics.Bitmap bitmap =
+                            android.graphics.BitmapFactory.decodeByteArray(
+                                    data,
+                                    0,
+                                    data.length
+                            );
+
+                    if (bitmap != null) {
+                        art.setImageBitmap(bitmap);
+                    }
+                }
+
+                if (art.getDrawable() == null) {
+                    art.setImageResource(
+                            android.R.drawable.ic_media_play
+                    );
+                }
+
+                GradientDrawable artBg =
+                        new GradientDrawable();
+
+                artBg.setColor(Color.rgb(35, 35, 42));
+                artBg.setCornerRadius(dp(12));
+
+                art.setBackground(artBg);
+                art.setClipToOutline(true);
+
+                row.addView(
+                        art,
+                        new LinearLayout.LayoutParams(
+                                dp(58),
+                                dp(58)
+                        )
+                );
+
+                LinearLayout texts =
+                        new LinearLayout(this);
+
+                texts.setOrientation(
+                        LinearLayout.VERTICAL
+                );
+
+                texts.setPadding(
+                        dp(14),
+                        0,
+                        dp(10),
+                        0
+                );
+
+                TextView t =
+                        labelText(
+                                itemTitle,
+                                15,
+                                i == current
+                                        ? Color.rgb(245, 240, 255)
+                                        : Color.rgb(238, 238, 242)
+                        );
+
+                TextView a =
+                        labelText(
+                                itemArtist,
+                                12,
+                                Color.rgb(145, 145, 155)
+                        );
+
+                texts.addView(t);
+                texts.addView(a);
+
+                row.addView(
+                        texts,
+                        new LinearLayout.LayoutParams(
+                                0,
+                                -2,
+                                1
+                        )
+                );
+
+                if (i == current) {
+                    TextView now =
+                            labelText(
+                                    "NOW PLAYING",
+                                    9,
+                                    Color.rgb(190, 165, 255)
+                            );
+
+                    row.addView(
+                            now,
+                            new LinearLayout.LayoutParams(
+                                    -2,
+                                    -2
+                            )
+                    );
+                }
+
+                row.setOnClickListener(v -> {
+                    controller.seekToDefaultPosition(queueIndex);
+                    controller.play();
+                    overlay.animate()
+                            .alpha(0f)
+                            .setDuration(160)
+                            .withEndAction(
+                                    () -> root.removeView(overlay)
+                            )
+                            .start();
+                });
+
+                LinearLayout.LayoutParams rowParams =
+                        new LinearLayout.LayoutParams(
+                                -1,
+                                dp(76)
+                        );
+
+                rowParams.bottomMargin = dp(6);
+
+                queue.addView(row, rowParams);
+            }
+
+            scroll.addView(
+                    queue,
+                    new android.widget.ScrollView.LayoutParams(
+                            -1,
+                            -2
+                    )
+            );
+
+            content.addView(
+                    scroll,
+                    new LinearLayout.LayoutParams(
+                            -1,
+                            0,
+                            1
+                    )
+            );
+
+        } else {
+
+            android.widget.ScrollView scroll =
+                    new android.widget.ScrollView(this);
+
+            TextView lyrics =
+                    new TextView(this);
+
+            String text =
+                    controller.getCurrentMediaItem()
+                            .mediaMetadata
+                            .description != null
+                            ? controller.getCurrentMediaItem()
+                                    .mediaMetadata
+                                    .description
+                                    .toString()
+                            : "Lyrics are not available for this track yet.";
+
+            lyrics.setText(text);
+            lyrics.setTextColor(
+                    Color.rgb(242, 242, 246)
+            );
+            lyrics.setTextSize(21);
+            lyrics.setGravity(
+                    Gravity.CENTER_HORIZONTAL
+            );
+            lyrics.setLineSpacing(
+                    dp(7),
+                    1.12f
+            );
+            lyrics.setPadding(
+                    dp(12),
+                    dp(35),
+                    dp(12),
+                    dp(60)
+            );
+
+            scroll.addView(
+                    lyrics,
+                    new android.widget.ScrollView.LayoutParams(
+                            -1,
+                            -2
+                    )
+            );
+
+            content.addView(
+                    scroll,
+                    new LinearLayout.LayoutParams(
+                            -1,
+                            0,
+                            1
+                    )
+            );
+        }
+
+        TextView bottom =
+                labelText(
+                        queueMode
+                                ? "UP NEXT"
+                                : "NOW PLAYING",
+                        9,
+                        Color.rgb(190, 165, 255)
+                );
+
+        bottom.setGravity(
+                Gravity.CENTER
+        );
+
+        content.addView(
+                bottom,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        dp(34)
+                )
+        );
+
+        overlay.addView(
+                content,
+                new FrameLayout.LayoutParams(
+                        -1,
+                        -1
+                )
+        );
+
+        root.addView(
+                overlay,
+                new FrameLayout.LayoutParams(
+                        -1,
+                        -1
+                )
+        );
+
+        overlay.animate()
+                .alpha(1f)
+                .setDuration(260)
+                .start();
     }
 
     private void showPlayerOptions() {
